@@ -1,9 +1,10 @@
 {
   "version": 2,
   "framework": null,
+  "buildCommand": "echo 'Build OK'",
   "functions": {
     "api/index.php": {
-      "runtime": "vercel-php@0.7.2"
+      "runtime": "vercel-php@0.9.0"
     }
   },
   "routes": [
@@ -33,7 +34,7 @@
     "APP_PACKAGES_CACHE": "/tmp/packages.php",
     "APP_ROUTES_CACHE": "/tmp/routes.php",
     "APP_SERVICES_CACHE": "/tmp/services.php",
-    "VIEW_COMPILED_PATH": "/tmp/views",
+    "VIEW_COMPILED_PATH": "/tmp",
     "CACHE_STORE": "array",
     "SESSION_DRIVER": "cookie",
     "GOOGLE_SHEET_WEBAPP_URL": "https://script.google.com/macros/s/AKfycbzsATpz5NB3a6LXaeilqp0cBiIBigCwp5hPzvo88kJqLtEZN8fmp_bZW8Xy-G7KEJJ5/exec"
