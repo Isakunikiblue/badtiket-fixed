@@ -2382,25 +2382,20 @@
 
                 function executeApiCall(action, params, onSuccess, onFail) {
                     if (action === 'getDashboardData') {
-                        // Ambil data secara asinkron dari Google Apps Script Web App langsung (bebas limit payload Vercel)
-                        fetch(gasExecUrl + '?action=getDashboardData')
+                        // Tarik data dashboard dari Laravel backend (atau fallback Google Apps Script)
+                        fetch('/mata-api/dashboard-data')
                             .then(r => {
-                                if (!r.ok) throw new Error('GAS HTTP ' + r.status);
+                                if (!r.ok) throw new Error('Laravel HTTP ' + r.status);
                                 return r.json();
                             })
                             .then(data => {
                                 if (onSuccess) onSuccess(data);
                             })
                             .catch(err => {
-                                console.warn('Fetch langsung ke Google Apps Script gagal/terkendala, mencoba fallback API Laravel...', err);
-                                fetch('/mata-api/dashboard-data')
-                                    .then(r => {
-                                        if (!r.ok) throw new Error('Laravel HTTP ' + r.status);
-                                        return r.json();
-                                    })
-                                    .then(data => {
-                                        if (onSuccess) onSuccess(data);
-                                    })
+                                console.warn('Backend fetch gagal, mencoba fallback GAS...', err);
+                                fetch(gasExecUrl + '?action=getDashboardData')
+                                    .then(r => r.json())
+                                    .then(data => { if (onSuccess) onSuccess(data); })
                                     .catch(e => {
                                         if (onFail) onFail(e);
                                         else console.error('Gagal memuat dataset dashboard:', e);
@@ -2409,25 +2404,43 @@
                         return;
                     }
 
-                    // Panggilan umum (loginUser, getUsers, addUser, updateUser, logActivity, dll.)
-                    let url = gasExecUrl + '?action=' + encodeURIComponent(action);
-                    if (params) {
-                        for (const key in params) {
-                            if (params.hasOwnProperty(key) && params[key] !== undefined && params[key] !== null) {
-                                url += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+                    // Panggilan RPC (validateLogin, requestAccess, getUsers, logActivity, dll.)
+                    // Diproses langsung oleh backend Laravel (100% Bebas CORS & Instan)
+                    const payload = Object.assign({ action: action }, params || {});
+
+                    fetch('/mata-api/rpc', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Accept': 'application/json'
+                        },
+                        body: JSON.stringify(payload)
+                    })
+                    .then(r => {
+                        if (!r.ok) throw new Error('HTTP ' + r.status);
+                        return r.json();
+                    })
+                    .then(res => {
+                        if (onSuccess) onSuccess(res);
+                    })
+                    .catch(err => {
+                        console.warn('POST RPC error [' + action + '], mencoba fallback GET...', err);
+                        let qUrl = '/mata-api/rpc?action=' + encodeURIComponent(action);
+                        for (const k in payload) {
+                            if (k !== 'action' && payload[k] !== undefined && payload[k] !== null) {
+                                qUrl += '&' + encodeURIComponent(k) + '=' + encodeURIComponent(payload[k]);
                             }
                         }
-                    }
-
-                    fetch(url)
-                        .then(r => r.json())
-                        .then(res => {
-                            if (onSuccess) onSuccess(res);
-                        })
-                        .catch(err => {
-                            if (onFail) onFail(err);
-                            else console.warn('GAS call error [' + action + ']:', err);
-                        });
+                        fetch(qUrl)
+                            .then(r => r.json())
+                            .then(res => {
+                                if (onSuccess) onSuccess(res);
+                            })
+                            .catch(fallbackErr => {
+                                if (onFail) onFail(fallbackErr);
+                                else console.error('RPC error [' + action + ']:', fallbackErr);
+                            });
+                    });
                 }
 
                 function createRunner(successCb, failCb) {
@@ -2441,6 +2454,9 @@
                         getDashboardData: function () {
                             executeApiCall('getDashboardData', {}, successCb, failCb);
                         },
+                        validateLogin: function (username, password) {
+                            executeApiCall('validateLogin', { username: username, password: password }, successCb, failCb);
+                        },
                         loginUser: function (username, password) {
                             executeApiCall('loginUser', { username: username, password: password }, successCb, failCb);
                         },
@@ -2449,8 +2465,11 @@
                                 executeApiCall('logActivity', { username: username, role: role, activity: activity });
                             } catch (e) {}
                         },
-                        getUsers: function () {
-                            executeApiCall('getUsers', {}, successCb, failCb);
+                        getUsers: function (requester) {
+                            executeApiCall('getUsers', { requesterUsername: requester }, successCb, failCb);
+                        },
+                        getAllUsers: function (requester) {
+                            executeApiCall('getAllUsers', { requesterUsername: requester }, successCb, failCb);
                         },
                         addUser: function (currentUser, username, password, role, nama) {
                             executeApiCall('addUser', { currentUser: currentUser, username: username, password: password, role: role, nama: nama }, successCb, failCb);
@@ -2479,11 +2498,11 @@
                         rejectRequest: function (currentUser, id) {
                             executeApiCall('rejectRequest', { currentUser: currentUser, id: id }, successCb, failCb);
                         },
-                        getActivityLogs: function () {
-                            executeApiCall('getActivityLogs', {}, successCb, failCb);
+                        getActivityLogs: function (requester) {
+                            executeApiCall('getActivityLogs', { requesterUsername: requester }, successCb, failCb);
                         },
-                        exportActivityLogs: function () {
-                            executeApiCall('exportActivityLogs', {}, successCb, failCb);
+                        exportActivityLogs: function (requester) {
+                            executeApiCall('exportActivityLogs', { requesterUsername: requester }, successCb, failCb);
                         }
                     };
 
