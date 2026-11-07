@@ -18,15 +18,15 @@ class DashboardController extends Controller
 
     /**
      * Halaman Utama Dashboard MATA
+     * Data dimuat secara asinkron (client-side fetch) agar halaman awal memuat secara instan (<50ms)
+     * dan ukuran respons HTML tetap ringan (~1.4MB), jauh di bawah batas 4.5MB Vercel Serverless.
      */
     public function index(): View
     {
-        $dashboardData = $this->sheetService->getDashboardData();
-
         return view('dashboard', [
-            'dashboardData' => $dashboardData,
-            'sourceType' => $dashboardData['source_type'] ?? 'unknown',
-            'cachedAt' => $dashboardData['cached_at'] ?? now()->toDateTimeString(),
+            'dashboardData' => null,
+            'sourceType' => 'google_apps_script_api',
+            'cachedAt' => now()->toDateTimeString(),
         ]);
     }
 
@@ -57,4 +57,3 @@ class DashboardController extends Controller
         return response()->json($data);
     }
 }
-

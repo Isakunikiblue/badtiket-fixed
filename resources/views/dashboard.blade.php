@@ -2371,73 +2371,140 @@
         }
     </style>
     <script>
-        // Data inisial langsung dari Laravel backend (Load instan tanpa delay)
-        window.__INITIAL_DASHBOARD_DATA__ = @json($dashboardData ?? null);
+        // Data inisial (diset null agar respon awal HTML ringan ~1.4MB dan cepat <50ms)
+        window.__INITIAL_DASHBOARD_DATA__ = null;
 
-        // Bridge kompatibilitas google.script.run untuk lingkungan PHP/Laravel
+        // Bridge kompatibilitas google.script.run untuk lingkungan PHP/Laravel & Vercel
         if (typeof google === 'undefined' || !google.script) {
             window.google = window.google || {};
-            window.google.script = {
-                run: {
-                    withSuccessHandler: function(onSuccess) {
-                        function makeCaller(onFail) {
-                            const gasExecUrl = 'https://script.google.com/macros/s/AKfycbzsATpz5NB3a6LXaeilqp0cBiIBigCwp5hPzvo88kJqLtEZN8fmp_bZW8Xy-G7KEJJ5/exec';
-                            return {
-                                getDashboardData: function() {
-                                    if (window.__INITIAL_DASHBOARD_DATA__ && (window.__INITIAL_DASHBOARD_DATA__.rawRecords || window.__INITIAL_DASHBOARD_DATA__.fixed)) {
-                                        onSuccess(window.__INITIAL_DASHBOARD_DATA__);
-                                        return;
-                                    }
-                                    fetch('/api/dashboard-data')
-                                        .then(r => r.json())
-                                        .then(data => onSuccess(data))
-                                        .catch(err => { if (onFail) onFail(err); });
-                                },
-                                loginUser: function(username, password) {
-                                    fetch(gasExecUrl + '?action=loginUser&username=' + encodeURIComponent(username) + '&password=' + encodeURIComponent(password))
-                                        .then(r => r.json())
-                                        .then(res => onSuccess(res))
-                                        .catch(err => { if (onFail) onFail(err); });
-                                },
-                                logActivity: function(username, role, activity) {
-                                    try {
-                                        fetch(gasExecUrl + '?action=logActivity&username=' + encodeURIComponent(username) + '&role=' + encodeURIComponent(role) + '&activity=' + encodeURIComponent(activity), { mode: 'no-cors' });
-                                    } catch(e) {}
-                                },
-                                getUsers: function() {
-                                    fetch(gasExecUrl + '?action=getUsers')
-                                        .then(r => r.json())
-                                        .then(res => onSuccess(res))
-                                        .catch(err => { if (onFail) onFail(err); });
-                                },
-                                addUser: function(cUser, uName, uPass, uRole, uNama) {
-                                    fetch(gasExecUrl + '?action=addUser&currentUser=' + encodeURIComponent(cUser) + '&username=' + encodeURIComponent(uName) + '&password=' + encodeURIComponent(uPass) + '&role=' + encodeURIComponent(uRole) + '&nama=' + encodeURIComponent(uNama))
-                                        .then(r => r.json())
-                                        .then(res => onSuccess(res))
-                                        .catch(err => { if (onFail) onFail(err); });
-                                },
-                                updateUser: function(cUser, uName, uPass, uRole, uNama) {
-                                    fetch(gasExecUrl + '?action=updateUser&currentUser=' + encodeURIComponent(cUser) + '&username=' + encodeURIComponent(uName) + '&password=' + encodeURIComponent(uPass) + '&role=' + encodeURIComponent(uRole) + '&nama=' + encodeURIComponent(uNama))
-                                        .then(r => r.json())
-                                        .then(res => onSuccess(res))
-                                        .catch(err => { if (onFail) onFail(err); });
-                                },
-                                deleteUser: function(cUser, uName) {
-                                    fetch(gasExecUrl + '?action=deleteUser&currentUser=' + encodeURIComponent(cUser) + '&username=' + encodeURIComponent(uName))
-                                        .then(r => r.json())
-                                        .then(res => onSuccess(res))
-                                        .catch(err => { if (onFail) onFail(err); });
-                                }
-                            };
-                        }
-                        const caller = makeCaller(null);
-                        caller.withFailureHandler = function(onFail) {
-                            return makeCaller(onFail);
-                        };
-                        return caller;
+            (function () {
+                const gasExecUrl = 'https://script.google.com/macros/s/AKfycbzsATpz5NB3a6LXaeilqp0cBiIBigCwp5hPzvo88kJqLtEZN8fmp_bZW8Xy-G7KEJJ5/exec';
+
+                function executeApiCall(action, params, onSuccess, onFail) {
+                    if (action === 'getDashboardData') {
+                        // Ambil data secara asinkron dari Google Apps Script Web App langsung (bebas limit payload Vercel)
+                        fetch(gasExecUrl + '?action=getDashboardData')
+                            .then(r => {
+                                if (!r.ok) throw new Error('GAS HTTP ' + r.status);
+                                return r.json();
+                            })
+                            .then(data => {
+                                if (onSuccess) onSuccess(data);
+                            })
+                            .catch(err => {
+                                console.warn('Fetch langsung ke Google Apps Script gagal/terkendala, mencoba fallback API Laravel...', err);
+                                fetch('/api/dashboard-data')
+                                    .then(r => {
+                                        if (!r.ok) throw new Error('Laravel HTTP ' + r.status);
+                                        return r.json();
+                                    })
+                                    .then(data => {
+                                        if (onSuccess) onSuccess(data);
+                                    })
+                                    .catch(e => {
+                                        if (onFail) onFail(e);
+                                        else console.error('Gagal memuat dataset dashboard:', e);
+                                    });
+                            });
+                        return;
                     }
+
+                    // Panggilan umum (loginUser, getUsers, addUser, updateUser, logActivity, dll.)
+                    let url = gasExecUrl + '?action=' + encodeURIComponent(action);
+                    if (params) {
+                        for (const key in params) {
+                            if (params.hasOwnProperty(key) && params[key] !== undefined && params[key] !== null) {
+                                url += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(params[key]);
+                            }
+                        }
+                    }
+
+                    fetch(url)
+                        .then(r => r.json())
+                        .then(res => {
+                            if (onSuccess) onSuccess(res);
+                        })
+                        .catch(err => {
+                            if (onFail) onFail(err);
+                            else console.warn('GAS call error [' + action + ']:', err);
+                        });
                 }
-            };
+
+                function createRunner(successCb, failCb) {
+                    const runner = {
+                        withSuccessHandler: function (cb) {
+                            return createRunner(cb, failCb);
+                        },
+                        withFailureHandler: function (cb) {
+                            return createRunner(successCb, cb);
+                        },
+                        getDashboardData: function () {
+                            executeApiCall('getDashboardData', {}, successCb, failCb);
+                        },
+                        loginUser: function (username, password) {
+                            executeApiCall('loginUser', { username: username, password: password }, successCb, failCb);
+                        },
+                        logActivity: function (username, role, activity) {
+                            try {
+                                executeApiCall('logActivity', { username: username, role: role, activity: activity });
+                            } catch (e) {}
+                        },
+                        getUsers: function () {
+                            executeApiCall('getUsers', {}, successCb, failCb);
+                        },
+                        addUser: function (currentUser, username, password, role, nama) {
+                            executeApiCall('addUser', { currentUser: currentUser, username: username, password: password, role: role, nama: nama }, successCb, failCb);
+                        },
+                        updateUser: function (currentUser, username, password, role, nama) {
+                            executeApiCall('updateUser', { currentUser: currentUser, username: username, password: password, role: role, nama: nama }, successCb, failCb);
+                        },
+                        deleteUser: function (currentUser, username) {
+                            executeApiCall('deleteUser', { currentUser: currentUser, username: username }, successCb, failCb);
+                        },
+                        requestAccess: function (namaLengkap, username, password, unit, role) {
+                            executeApiCall('requestAccess', { namaLengkap: namaLengkap, username: username, password: password, unit: unit, role: role }, successCb, failCb);
+                        },
+                        getColumnVisibilitySettings: function (username) {
+                            executeApiCall('getColumnVisibilitySettings', { username: username }, successCb, failCb);
+                        },
+                        setColumnVisibilitySettings: function (username, hideDetil, hideNotes) {
+                            executeApiCall('setColumnVisibilitySettings', { username: username, hideDetil: hideDetil, hideNotes: hideNotes }, successCb, failCb);
+                        },
+                        getPendingRequests: function () {
+                            executeApiCall('getPendingRequests', {}, successCb, failCb);
+                        },
+                        approveRequest: function (currentUser, id) {
+                            executeApiCall('approveRequest', { currentUser: currentUser, id: id }, successCb, failCb);
+                        },
+                        rejectRequest: function (currentUser, id) {
+                            executeApiCall('rejectRequest', { currentUser: currentUser, id: id }, successCb, failCb);
+                        },
+                        getActivityLogs: function () {
+                            executeApiCall('getActivityLogs', {}, successCb, failCb);
+                        },
+                        exportActivityLogs: function () {
+                            executeApiCall('exportActivityLogs', {}, successCb, failCb);
+                        }
+                    };
+
+                    if (typeof Proxy !== 'undefined') {
+                        return new Proxy(runner, {
+                            get: function (target, prop) {
+                                if (prop in target) return target[prop];
+                                return function (...args) {
+                                    executeApiCall(prop, { args: JSON.stringify(args) }, successCb, failCb);
+                                };
+                            }
+                        });
+                    }
+
+                    return runner;
+                }
+
+                window.google.script = {
+                    run: createRunner(null, null)
+                };
+            })();
         }
     </script>
 </head>
