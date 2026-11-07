@@ -153,16 +153,106 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Ambil daftar user dari JSON store (dengan default akun superadmin & badtiket)
+     * Ambil akun-akun terdaftar langsung dari Google Spreadsheet / Google Apps Script
      */
-    protected function loadUsers(): array
+    protected function fetchUsersFromGoogle(): array
+    {
+        $webAppUrl = config('services.google_sheets.webapp_url');
+        $sheetId = config('services.google_sheets.spreadsheet_id');
+        $googleUsers = [];
+
+        // 1. Coba ambil dari Google Apps Script Web App (?action=getUsers)
+        if (!empty($webAppUrl)) {
+            try {
+                $res = \Illuminate\Support\Facades\Http::timeout(10)
+                    ->withOptions(['allow_redirects' => true])
+                    ->get($webAppUrl, ['action' => 'getUsers']);
+
+                if ($res->successful()) {
+                    $json = $res->json();
+                    $raw = $json['users'] ?? (is_array($json) && isset($json[0]['username']) ? $json : []);
+                    foreach ($raw as $u) {
+                        if (!empty($u['username'])) {
+                            $googleUsers[] = [
+                                'username' => trim($u['username']),
+                                'password' => $u['password'] ?? '',
+                                'plain' => $u['plain'] ?? $u['password'] ?? '',
+                                'role' => strtolower($u['role'] ?? 'user') === 'superadmin' ? 'superadmin' : 'user',
+                                'status' => strtolower($u['status'] ?? 'aktif') === 'pending' ? 'pending' : 'aktif',
+                                'nama' => $u['nama'] ?? $u['username'],
+                            ];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::info('Fetch users from Google Apps Script: ' . $e->getMessage());
+            }
+        }
+
+        // 2. Coba ambil dari Google Spreadsheet ID (tab sheet "Users") via CSV
+        if (empty($googleUsers) && !empty($sheetId)) {
+            try {
+                $url = "https://docs.google.com/spreadsheets/d/{$sheetId}/gviz/tq?tqx=out:csv&sheet=" . urlencode('Users');
+                $res = \Illuminate\Support\Facades\Http::timeout(10)->get($url);
+
+                if ($res->successful()) {
+                    $lines = explode("\n", trim($res->body()));
+                    // Lewati baris header (index 0)
+                    for ($i = 1; $i < count($lines); $i++) {
+                        $row = str_getcsv($lines[$i]);
+                        $uName = trim($row[0] ?? '');
+                        if ($uName !== '') {
+                            $googleUsers[] = [
+                                'username' => $uName,
+                                'password' => trim($row[1] ?? ''),
+                                'plain' => trim($row[1] ?? ''),
+                                'role' => strtolower(trim($row[2] ?? 'user')) === 'superadmin' ? 'superadmin' : 'user',
+                                'status' => strtolower(trim($row[3] ?? 'aktif')) === 'pending' ? 'pending' : 'aktif',
+                                'nama' => trim($row[4] ?? '') ?: $uName,
+                            ];
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::info('Fetch users from Google Sheet CSV: ' . $e->getMessage());
+            }
+        }
+
+        return $googleUsers;
+    }
+
+    /**
+     * Ambil daftar user dari JSON store (dengan sinkronisasi otomatis ke Google Spreadsheet)
+     */
+    protected function loadUsers(bool $forceGoogleSync = false): array
     {
         $file = $this->getUsersFilePath();
+        $cachedUsers = [];
+
         if (File::exists($file)) {
-            $data = json_decode(File::get($file), true);
-            if (is_array($data) && count($data) > 0) {
-                return $data;
+            $cachedUsers = json_decode(File::get($file), true) ?: [];
+        }
+
+        // Jika dipaksa sync atau cache lokal masih kosong, ambil dari Google Sheet
+        if ($forceGoogleSync || empty($cachedUsers)) {
+            $googleUsers = $this->fetchUsersFromGoogle();
+            if (!empty($googleUsers)) {
+                $userMap = [];
+                foreach ($cachedUsers as $u) {
+                    $userMap[strtolower($u['username'])] = $u;
+                }
+                foreach ($googleUsers as $gu) {
+                    $key = strtolower($gu['username']);
+                    $userMap[$key] = array_merge($userMap[$key] ?? [], $gu);
+                }
+                $merged = array_values($userMap);
+                $this->saveUsers($merged);
+                return $merged;
             }
+        }
+
+        if (!empty($cachedUsers)) {
+            return $cachedUsers;
         }
 
         // Akun bawaan sistem MATA
@@ -203,7 +293,7 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Validasi kredensial login (mendukung password ter-hash maupun plain)
+     * Validasi kredensial login (mendukung password ter-hash maupun plain, auto-sync Google Sheet)
      */
     protected function validateLogin(string $username, string $password): array
     {
@@ -226,6 +316,17 @@ class GasBridgeController extends Controller
             if (strtolower(trim($usr['username'])) === $u) {
                 $found = $usr;
                 break;
+            }
+        }
+
+        // Jika user tidak ditemukan di cache lokal, sync langsung dari Google Sheet!
+        if (!$found) {
+            $freshUsers = $this->loadUsers(forceGoogleSync: true);
+            foreach ($freshUsers as $usr) {
+                if (strtolower(trim($usr['username'])) === $u) {
+                    $found = $usr;
+                    break;
+                }
             }
         }
 
@@ -258,11 +359,11 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Ambil semua user untuk panel Superadmin
+     * Ambil semua user untuk panel Superadmin (otomatis sync dari Google Sheet)
      */
     protected function getUsers(string $requesterUsername): array
     {
-        $users = $this->loadUsers();
+        $users = $this->loadUsers(forceGoogleSync: true);
         $safeUsers = array_map(function ($u) {
             return [
                 'username' => $u['username'],
@@ -514,3 +615,4 @@ class GasBridgeController extends Controller
         return ['success' => true];
     }
 }
+
