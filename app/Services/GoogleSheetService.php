@@ -66,8 +66,6 @@ class GoogleSheetService
                         $mobileFilters = $json['mobile']['filters'] ?? [];
 
                         return [
-                            'rawRecords' => $fixedRecords,
-                            'filters' => $fixedFilters,
                             'fixed' => [
                                 'rawRecords' => $fixedRecords,
                                 'filters' => $fixedFilters,
@@ -97,8 +95,6 @@ class GoogleSheetService
                     $mobileProcessed = $this->processRecords($mobileRecords);
 
                     return [
-                        'rawRecords' => $fixedProcessed['records'],
-                        'filters' => $fixedProcessed['filters'],
                         'fixed' => [
                             'rawRecords' => $fixedProcessed['records'],
                             'filters' => $fixedProcessed['filters'],

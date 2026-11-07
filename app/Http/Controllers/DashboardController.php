@@ -48,12 +48,24 @@ class DashboardController extends Controller
     }
 
     /**
-     * Endpoint API JSON data untuk client-side
+     * Endpoint API JSON data untuk client-side (dengan kompresi gzip agar payload < 400KB & sangat cepat)
      */
-    public function getData(): JsonResponse
+    public function getData(Request $request)
     {
         $data = $this->sheetService->getDashboardData();
+        $json = json_encode($data);
 
-        return response()->json($data);
+        if (str_contains($request->header('Accept-Encoding', ''), 'gzip') && function_exists('gzencode')) {
+            return response(gzencode($json, 6), 200, [
+                'Content-Type' => 'application/json',
+                'Content-Encoding' => 'gzip',
+                'Cache-Control' => 'public, max-age=180',
+            ]);
+        }
+
+        return response($json, 200, [
+            'Content-Type' => 'application/json',
+            'Cache-Control' => 'public, max-age=180',
+        ]);
     }
 }
