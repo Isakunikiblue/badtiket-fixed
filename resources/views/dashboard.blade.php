@@ -2393,7 +2393,7 @@
                             })
                             .catch(err => {
                                 console.warn('Fetch langsung ke Google Apps Script gagal/terkendala, mencoba fallback API Laravel...', err);
-                                fetch('/api/dashboard-data')
+                                fetch('/mata-api/dashboard-data')
                                     .then(r => {
                                         if (!r.ok) throw new Error('Laravel HTTP ' + r.status);
                                         return r.json();
