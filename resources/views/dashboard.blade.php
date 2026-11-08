@@ -3169,16 +3169,26 @@
     z-index: 1060 !important;
   }
   .unit-opt-item {
-    transition: background-color 0.15s ease-in-out;
-    border-radius: 6px;
-    margin-bottom: 2px;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+    border-radius: 8px;
+    margin-bottom: 3px;
+    border: 1px solid transparent;
   }
   .unit-opt-item:hover {
     background-color: #F8FAFC;
   }
+  .unit-opt-item.selected {
+    background-color: #FFF1F2;
+    border-color: rgba(163, 0, 48, 0.18);
+  }
   .unit-opt-item .form-check-input {
     cursor: pointer;
-    margin-top: 0.25rem;
+    flex-shrink: 0;
+    accent-color: #A30030;
+  }
+  .unit-opt-item .form-check-input:checked {
+    background-color: #A30030;
+    border-color: #A30030;
   }
   .unit-opt-item .form-check-label {
     cursor: pointer;
@@ -3186,9 +3196,13 @@
     font-weight: 500;
     color: #334155;
   }
-  .unit-opt-item .form-check-input:checked ~ .form-check-label {
+  .unit-opt-item.selected .form-check-label {
     color: #A30030;
     font-weight: 600;
+  }
+  .unit-opt-item .check-indicator {
+    color: #A30030 !important;
+    font-size: 0.82rem;
   }
   .unit-ms-options::-webkit-scrollbar {
     width: 6px;
@@ -3992,9 +4006,9 @@
                                 </button>
                                 <div class="dropdown-menu p-2 shadow unit-ms-menu" aria-labelledby="btn_filUnit">
                                     <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
-                                        <div class="form-check mb-0 ms-1">
-                                            <input class="form-check-input" type="checkbox" id="checkAll_filUnit" checked onchange="toggleSelectAllUnits('filUnit', this.checked)">
-                                            <label class="form-check-label small fw-bold" for="checkAll_filUnit" style="cursor:pointer;">Pilih Semua</label>
+                                        <div class="form-check mb-0 d-flex align-items-center gap-2" style="padding-left:0;">
+                                            <input class="form-check-input m-0" type="checkbox" id="checkAll_filUnit" checked onchange="toggleSelectAllUnits('filUnit', this.checked)" style="cursor:pointer; width:1.15em; height:1.15em; accent-color:#A30030;">
+                                            <label class="form-check-label small fw-bold mb-0" for="checkAll_filUnit" style="cursor:pointer; user-select:none;">Pilih Semua</label>
                                         </div>
                                         <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" onclick="clearUnitMultiSelect('filUnit')">Reset</button>
                                     </div>
@@ -4521,9 +4535,9 @@
                                 </button>
                                 <div class="dropdown-menu p-2 shadow unit-ms-menu" aria-labelledby="btn_filBdUnit">
                                     <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
-                                        <div class="form-check mb-0 ms-1">
-                                            <input class="form-check-input" type="checkbox" id="checkAll_filBdUnit" checked onchange="toggleSelectAllUnits('filBdUnit', this.checked)">
-                                            <label class="form-check-label small fw-bold" for="checkAll_filBdUnit" style="cursor:pointer;">Pilih Semua</label>
+                                        <div class="form-check mb-0 d-flex align-items-center gap-2" style="padding-left:0;">
+                                            <input class="form-check-input m-0" type="checkbox" id="checkAll_filBdUnit" checked onchange="toggleSelectAllUnits('filBdUnit', this.checked)" style="cursor:pointer; width:1.15em; height:1.15em; accent-color:#A30030;">
+                                            <label class="form-check-label small fw-bold mb-0" for="checkAll_filBdUnit" style="cursor:pointer; user-select:none;">Pilih Semua</label>
                                         </div>
                                         <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" onclick="clearUnitMultiSelect('filBdUnit')">Reset</button>
                                     </div>
@@ -5044,9 +5058,9 @@
                                 </button>
                                 <div class="dropdown-menu p-2 shadow unit-ms-menu" aria-labelledby="btn_filKipUnit">
                                     <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
-                                        <div class="form-check mb-0 ms-1">
-                                            <input class="form-check-input" type="checkbox" id="checkAll_filKipUnit" checked onchange="toggleSelectAllUnits('filKipUnit', this.checked)">
-                                            <label class="form-check-label small fw-bold" for="checkAll_filKipUnit" style="cursor:pointer;">Pilih Semua</label>
+                                        <div class="form-check mb-0 d-flex align-items-center gap-2" style="padding-left:0;">
+                                            <input class="form-check-input m-0" type="checkbox" id="checkAll_filKipUnit" checked onchange="toggleSelectAllUnits('filKipUnit', this.checked)" style="cursor:pointer; width:1.15em; height:1.15em; accent-color:#A30030;">
+                                            <label class="form-check-label small fw-bold mb-0" for="checkAll_filKipUnit" style="cursor:pointer; user-select:none;">Pilih Semua</label>
                                         </div>
                                         <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" onclick="clearUnitMultiSelect('filKipUnit')">Reset</button>
                                     </div>
@@ -5413,9 +5427,9 @@
                                 </button>
                                 <div class="dropdown-menu p-2 shadow unit-ms-menu" aria-labelledby="btn_cmpUnit">
                                     <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
-                                        <div class="form-check mb-0 ms-1">
-                                            <input class="form-check-input" type="checkbox" id="checkAll_cmpUnit" checked onchange="toggleSelectAllUnits('cmpUnit', this.checked)">
-                                            <label class="form-check-label small fw-bold" for="checkAll_cmpUnit" style="cursor:pointer;">Pilih Semua</label>
+                                        <div class="form-check mb-0 d-flex align-items-center gap-2" style="padding-left:0;">
+                                            <input class="form-check-input m-0" type="checkbox" id="checkAll_cmpUnit" checked onchange="toggleSelectAllUnits('cmpUnit', this.checked)" style="cursor:pointer; width:1.15em; height:1.15em; accent-color:#A30030;">
+                                            <label class="form-check-label small fw-bold mb-0" for="checkAll_cmpUnit" style="cursor:pointer; user-select:none;">Pilih Semua</label>
                                         </div>
                                         <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" onclick="clearUnitMultiSelect('cmpUnit')">Reset</button>
                                     </div>
@@ -7688,11 +7702,14 @@
                 const safeUnit = escapeHtml(unit);
                 const safeVal = unit.replace(/"/g, '&quot;');
                 html += `
-                    <div class="form-check py-1 px-2 rounded unit-opt-item">
-                        <input class="form-check-input unit-cb-${id}" type="checkbox" value="${safeVal}" id="cb_${id}_${idx}" checked onchange="onUnitCheckboxChange('${id}')">
-                        <label class="form-check-label w-100 text-truncate" for="cb_${id}_${idx}" style="cursor:pointer; font-size:0.83rem;">
-                            ${safeUnit}
-                        </label>
+                    <div class="unit-opt-item d-flex align-items-center justify-content-between py-1 px-2 rounded mb-1 selected" style="cursor:pointer;" onclick="toggleUnitRow('${id}', '${idx}', event)">
+                        <div class="form-check mb-0 d-flex align-items-center gap-2" style="padding-left:0; min-height:auto;">
+                            <input class="form-check-input unit-cb-${id} m-0" type="checkbox" value="${safeVal}" id="cb_${id}_${idx}" checked onchange="onUnitCheckboxChange('${id}')" style="cursor:pointer; width:1.15em; height:1.15em; accent-color:#A30030;">
+                            <label class="form-check-label text-truncate mb-0" for="cb_${id}_${idx}" style="cursor:pointer; font-size:0.84rem; user-select:none;">
+                                ${safeUnit}
+                            </label>
+                        </div>
+                        <i class="fa-solid fa-check text-danger ms-2 check-indicator" style="font-size:0.8rem; display:inline-block;"></i>
                     </div>`;
                 selectOptionsHtml += `<option value="${safeVal}" selected>${safeUnit}</option>`;
             });
@@ -7712,6 +7729,20 @@
             const cbs = document.querySelectorAll('.unit-cb-' + id);
             const checked = Array.from(cbs).filter(cb => cb.checked);
             const checkAll = document.getElementById('checkAll_' + id);
+
+            cbs.forEach(cb => {
+                const itemRow = cb.closest('.unit-opt-item');
+                if (itemRow) {
+                    const checkIcon = itemRow.querySelector('.check-indicator');
+                    if (cb.checked) {
+                        itemRow.classList.add('selected');
+                        if (checkIcon) checkIcon.style.display = 'inline-block';
+                    } else {
+                        itemRow.classList.remove('selected');
+                        if (checkIcon) checkIcon.style.display = 'none';
+                    }
+                }
+            });
 
             if (checkAll) {
                 if (checked.length === cbs.length) {
@@ -7733,6 +7764,17 @@
             }
         }
 
+        function toggleUnitRow(id, idx, e) {
+            if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'LABEL')) {
+                return;
+            }
+            const cb = document.getElementById('cb_' + id + '_' + idx);
+            if (cb) {
+                cb.checked = !cb.checked;
+                onUnitCheckboxChange(id);
+            }
+        }
+
         function toggleSelectAllUnits(id, isChecked) {
             const cbs = document.querySelectorAll('.unit-cb-' + id);
             cbs.forEach(cb => { cb.checked = isChecked; });
@@ -7741,10 +7783,7 @@
                 checkAll.checked = isChecked;
                 checkAll.indeterminate = false;
             }
-            updateUnitMultiSelectDisplay(id);
-            if (id === 'filBdUnit' && typeof onBdUnitChange === 'function') {
-                onBdUnitChange();
-            }
+            onUnitCheckboxChange(id);
         }
 
         function clearUnitMultiSelect(id) {
