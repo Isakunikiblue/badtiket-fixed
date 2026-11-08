@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Services\GoogleSheetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -22,9 +23,15 @@ class GasBridgeController extends Controller
 
     /**
      * Dispatcher RPC serbaguna untuk bridge google.script.run dengan Otorisasi Sisi-Server (Server-Side Guard)
+     * dan Proteksi Anti-CSRF ketat.
      */
     public function handleRpc(Request $request): JsonResponse
     {
+        // 1. Validasi Keamanan Origin / Referer (Anti-CSRF)
+        if ($csrfDenied = $this->validateCsrfOrigin($request)) {
+            return $csrfDenied;
+        }
+
         $action = $request->input('action') ?? $request->query('action', '');
         $params = $request->all();
 
@@ -41,6 +48,7 @@ class GasBridgeController extends Controller
                 // ==================== AUTENTIKASI & SESI ====================
                 case 'validateLogin':
                 case 'loginUser':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
                     $u = $params['username'] ?? ($params['args_array'][0] ?? '');
                     $p = $params['password'] ?? ($params['args_array'][1] ?? '');
                     return response()->json($this->validateLogin($request, $u, $p));
@@ -59,13 +67,14 @@ class GasBridgeController extends Controller
                         'user' => $sUser,
                     ]);
 
-                // ==================== MANAJEMEN AKUN (SUPERADMIN ONLY) ====================
+                // ==================== MANAJEMEN AKUN (SUPERADMIN ONLY & POST ONLY) ====================
                 case 'getUsers':
                 case 'getAllUsers':
                     if ($denied = $this->requireAuth()) return $denied;
                     return response()->json($this->getUsers());
 
                 case 'addUser':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
                     if ($denied = $this->requireSuperadmin()) return $denied;
                     $uName = $params['username'] ?? ($params['args_array'][1] ?? '');
                     $uPass = $params['password'] ?? ($params['args_array'][2] ?? '');
@@ -74,6 +83,7 @@ class GasBridgeController extends Controller
                     return response()->json($this->addUser($uName, $uPass, $uRole, $uNama));
 
                 case 'updateUser':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
                     if ($denied = $this->requireSuperadmin()) return $denied;
                     $uName = $params['username'] ?? ($params['args_array'][1] ?? '');
                     $uPass = $params['password'] ?? ($params['args_array'][2] ?? '');
@@ -82,12 +92,14 @@ class GasBridgeController extends Controller
                     return response()->json($this->updateUser($uName, $uPass, $uRole, $uNama));
 
                 case 'deleteUser':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
                     if ($denied = $this->requireSuperadmin()) return $denied;
                     $uName = $params['username'] ?? ($params['args_array'][1] ?? '');
                     return response()->json($this->deleteUser($uName));
 
-                // ==================== PERMOHONAN AKSES ====================
+                // ==================== PERMOHONAN AKSES (POST ONLY) ====================
                 case 'requestAccess':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
                     $csdm = $params['namaLengkap'] ?? $params['csdm'] ?? ($params['args_array'][0] ?? '');
                     $nama = $params['username'] ?? $params['nama'] ?? ($params['args_array'][1] ?? '');
                     $pass = $params['password'] ?? ($params['args_array'][2] ?? '');
@@ -98,11 +110,13 @@ class GasBridgeController extends Controller
                     return response()->json($this->getPendingRequests());
 
                 case 'approveRequest':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
                     if ($denied = $this->requireSuperadmin()) return $denied;
                     $id = $params['id'] ?? ($params['args_array'][1] ?? '');
                     return response()->json($this->approveRequest($id));
 
                 case 'rejectRequest':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
                     if ($denied = $this->requireSuperadmin()) return $denied;
                     $id = $params['id'] ?? ($params['args_array'][1] ?? '');
                     return response()->json($this->rejectRequest($id));
@@ -125,6 +139,7 @@ class GasBridgeController extends Controller
                     return response()->json($this->getColumnVisibilitySettings());
 
                 case 'setColumnVisibilitySettings':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
                     if ($denied = $this->requireSuperadmin()) return $denied;
                     $hDetil = filter_var($params['hideDetil'] ?? ($params['args_array'][1] ?? false), FILTER_VALIDATE_BOOLEAN);
                     $hNotes = filter_var($params['hideNotes'] ?? ($params['args_array'][2] ?? false), FILTER_VALIDATE_BOOLEAN);
@@ -142,11 +157,53 @@ class GasBridgeController extends Controller
             }
         } catch (\Throwable $e) {
             Log::error('GasBridgeController error on action ' . $action . ': ' . $e->getMessage());
+            $errorMsg = config('app.debug') ? $e->getMessage() : 'Terjadi kesalahan sistem internal. Silakan hubungi administrator.';
             return response()->json([
                 'success' => false,
-                'error' => 'Terjadi kesalahan sistem internal: ' . $e->getMessage(),
+                'error' => $errorMsg,
             ], 500);
         }
+    }
+
+    /**
+     * Validasi Keamanan Asal Permintaan (CSRF Origin & Referer Verification)
+     */
+    protected function validateCsrfOrigin(Request $request): ?JsonResponse
+    {
+        if ($request->isMethod('POST')) {
+            $origin = $request->header('Origin');
+            $referer = $request->header('Referer');
+            $host = $request->getHost();
+
+            if ($origin && !str_contains(strtolower($origin), strtolower($host))) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Permintaan ditolak: Pelanggaran keamanan lintas-domain (CSRF Origin Mismatch).',
+                ], 403);
+            }
+
+            if ($referer && !str_contains(strtolower($referer), strtolower($host))) {
+                return response()->json([
+                    'success' => false,
+                    'error' => 'Permintaan ditolak: Pelanggaran keamanan referer (CSRF Referer Mismatch).',
+                ], 403);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Wajibkan metode POST untuk seluruh operasi pengubahan data (Anti-CSRF GET Exploits)
+     */
+    protected function requirePostMethod(Request $request): ?JsonResponse
+    {
+        if (!$request->isMethod('POST')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Metode HTTP ' . $request->method() . ' tidak diizinkan untuk operasi perubahan data ini. Wajib menggunakan POST.',
+            ], 405);
+        }
+        return null;
     }
 
     /**
@@ -191,7 +248,7 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Path file JSON penyimpanan data akun lokal
+     * Path file penyimpanan data akun lokal
      */
     protected function getUsersFilePath(): string
     {
@@ -200,6 +257,49 @@ class GasBridgeController extends Controller
             @mkdir($dir, 0777, true);
         }
         return $dir . '/mata_users.json';
+    }
+
+    /**
+     * Simpan file JSON ke disk dengan Enkripsi AES-256 (Data Encryption at Rest)
+     */
+    protected function saveEncryptedJson(string $filePath, array $data): void
+    {
+        try {
+            $json = json_encode($data, JSON_PRETTY_PRINT);
+            $encrypted = Crypt::encryptString($json);
+            File::put($filePath, $encrypted);
+        } catch (\Throwable $e) {
+            Log::warning("Gagal menyimpan encrypted file {$filePath}: " . $e->getMessage());
+        }
+    }
+
+    /**
+     * Baca file JSON terenkripsi dari disk dengan toleransi format legacy
+     */
+    protected function loadEncryptedJson(string $filePath): array
+    {
+        if (!File::exists($filePath)) {
+            return [];
+        }
+
+        try {
+            $content = File::get($filePath);
+            try {
+                $decrypted = Crypt::decryptString($content);
+                return json_decode($decrypted, true) ?: [];
+            } catch (\Throwable $eDec) {
+                // Fallback otomatis jika data sebelumnya masih format JSON plain -> enkripsikan sekarang
+                $plain = json_decode($content, true);
+                if (is_array($plain)) {
+                    $this->saveEncryptedJson($filePath, $plain);
+                    return $plain;
+                }
+            }
+        } catch (\Throwable $e) {
+            Log::warning("Gagal membaca file {$filePath}: " . $e->getMessage());
+        }
+
+        return [];
     }
 
     /**
@@ -239,16 +339,12 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Ambil daftar user dari penyimpanan lokal
+     * Ambil daftar user dari penyimpanan lokal (Terenkripsi AES-256)
      */
     protected function loadUsers(bool $forceGoogleSync = false): array
     {
         $file = $this->getUsersFilePath();
-        $cachedUsers = [];
-
-        if (File::exists($file)) {
-            $cachedUsers = json_decode(File::get($file), true) ?: [];
-        }
+        $cachedUsers = $this->loadEncryptedJson($file);
 
         if ($forceGoogleSync || empty($cachedUsers)) {
             $googleUsers = $this->fetchUsersFromGoogle();
@@ -302,21 +398,17 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Simpan daftar user ke file JSON secara aman tanpa plaintext
+     * Simpan daftar user ke file terenkripsi secara aman tanpa plaintext
      */
     protected function saveUsers(array $users): void
     {
-        try {
-            $cleanUsers = array_map(function ($u) {
-                unset($u['plain']); // Pastikan atribut plaintext dihapus total
-                return $u;
-            }, $users);
+        $cleanUsers = array_map(function ($u) {
+            unset($u['plain']); // Pastikan atribut plaintext dihapus total
+            return $u;
+        }, $users);
 
-            $file = $this->getUsersFilePath();
-            File::put($file, json_encode($cleanUsers, JSON_PRETTY_PRINT));
-        } catch (\Throwable $e) {
-            Log::warning('Gagal menyimpan file users: ' . $e->getMessage());
-        }
+        $file = $this->getUsersFilePath();
+        $this->saveEncryptedJson($file, $cleanUsers);
     }
 
     /**
@@ -611,15 +703,12 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Log aktivitas pengguna
+     * Log aktivitas pengguna (Terenkripsi AES-256)
      */
     protected function logActivity(string $username, string $role, string $activity): array
     {
         $file = storage_path('app/mata_activity.json');
-        $logs = [];
-        if (File::exists($file)) {
-            $logs = json_decode(File::get($file), true) ?: [];
-        }
+        $logs = $this->loadEncryptedJson($file);
 
         $logs[] = [
             'timestamp' => now()->timezone('Asia/Jakarta')->format('d/m/Y H:i:s') . ' WIB',
@@ -632,45 +721,39 @@ class GasBridgeController extends Controller
             $logs = array_slice($logs, -300);
         }
 
-        try {
-            File::put($file, json_encode($logs));
-        } catch (\Throwable $e) {}
+        $this->saveEncryptedJson($file, $logs);
 
         return ['success' => true];
     }
 
     /**
-     * Ambil riwayat log aktivitas
+     * Ambil riwayat log aktivitas (Mendekripsi data aman)
      */
     protected function getActivityLogs(): array
     {
         $file = storage_path('app/mata_activity.json');
-        $logs = [];
-        if (File::exists($file)) {
-            $logs = json_decode(File::get($file), true) ?: [];
-        }
+        $logs = $this->loadEncryptedJson($file);
 
         return ['success' => true, 'logs' => array_reverse($logs)];
     }
 
     /**
-     * Ambil pengaturan visibilitas kolom
+     * Ambil pengaturan visibilitas kolom (Mendekripsi data aman)
      */
     protected function getColumnVisibilitySettings(): array
     {
         $file = storage_path('app/mata_settings.json');
         $settings = ['hideDetilForUser' => false, 'hideNotesForUser' => false];
-        if (File::exists($file)) {
-            $saved = json_decode(File::get($file), true);
-            if (is_array($saved)) {
-                $settings = array_merge($settings, $saved);
-            }
+        $saved = $this->loadEncryptedJson($file);
+        if (is_array($saved)) {
+            $settings = array_merge($settings, $saved);
         }
+
         return array_merge(['success' => true], $settings);
     }
 
     /**
-     * Simpan pengaturan visibilitas kolom
+     * Simpan pengaturan visibilitas kolom (Terenkripsi AES-256)
      */
     protected function setColumnVisibilitySettings(bool $hideDetil, bool $hideNotes): array
     {
@@ -679,9 +762,7 @@ class GasBridgeController extends Controller
             'hideDetilForUser' => $hideDetil,
             'hideNotesForUser' => $hideNotes,
         ];
-        try {
-            File::put($file, json_encode($settings));
-        } catch (\Throwable $e) {}
+        $this->saveEncryptedJson($file, $settings);
 
         return ['success' => true];
     }

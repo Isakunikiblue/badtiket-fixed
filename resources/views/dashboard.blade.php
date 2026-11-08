@@ -3,6 +3,8 @@
 
 <head>
     <base target="_top">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <meta name="robots" content="noindex, nofollow">
     <title>Dashboard MATA (Monitoring Akurasi Tiket & Action)</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTQiIGZpbGw9IiNBMzAwMzAiLz48cGF0aCBkPSJNOCAyNEMxMyAxNiAzNSAxNiA0MCAyNEMzNSAzMiAxMyAzMiA4IDI0WiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iNy41IiBmaWxsPSIjRjU5RTBCIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMS44Ii8+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMy4yIiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMjUuMiIgY3k9IjIyLjgiIHI9IjEuMSIgZmlsbD0iIzgwMDAyMCIvPjwvc3ZnPg==">
     <!-- Preconnect: mulai DNS+TLS handshake ke semua CDN LEBIH AWAL & PARALEL,
@@ -2405,12 +2407,15 @@
                     // Panggilan RPC (validateLogin, requestAccess, getUsers, logActivity, dll.)
                     // Diproses langsung oleh backend Laravel (100% Bebas CORS & Instan)
                     const payload = Object.assign({ action: action }, params || {});
+                    const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
 
                     fetch('/mata-api/rpc', {
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
-                            'Accept': 'application/json'
+                            'Accept': 'application/json',
+                            'X-CSRF-TOKEN': csrfToken,
+                            'X-Requested-With': 'XMLHttpRequest'
                         },
                         body: JSON.stringify(payload)
                     })
@@ -7331,9 +7336,14 @@
 
             // Terminasi Sesi Server
             try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || '';
                 fetch('/mata-api/rpc', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        'X-Requested-With': 'XMLHttpRequest'
+                    },
                     body: JSON.stringify({ action: 'logout' })
                 }).catch(function () { });
             } catch (e) { }
