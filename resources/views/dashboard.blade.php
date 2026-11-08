@@ -3135,10 +3135,21 @@
     text-align: center;
   }
 
-  /* Custom Unit Name Multi-Select Styles */
+  /* Custom Unit Name Multi-Select & Filter Panel Stacking Styles */
+  .filter-panel-card {
+    position: relative;
+    z-index: 35;
+  }
+  .filter-panel-card:focus-within,
+  .filter-panel-card.dropdown-active {
+    z-index: 100 !important;
+  }
   .unit-ms-dropdown {
     position: relative;
     width: 100%;
+  }
+  .unit-ms-dropdown.show {
+    z-index: 105 !important;
   }
   .unit-ms-dropdown .form-select {
     cursor: pointer;
@@ -3152,10 +3163,10 @@
     min-width: 260px;
     max-width: 330px;
     border-radius: 12px;
-    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.06);
-    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 12px 32px rgba(15, 23, 42, 0.18), 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(226, 232, 240, 0.95);
     background-color: #ffffff;
-    z-index: 1060;
+    z-index: 1060 !important;
   }
   .unit-opt-item {
     transition: background-color 0.15s ease-in-out;
@@ -3942,7 +3953,7 @@
                 </div>
 
                 <!-- FILTER PANEL UTAMA -->
-                <div class="card-custom">
+                <div class="card-custom filter-panel-card">
                     <div class="d-flex align-items-center justify-content-between mb-3">
                         <h5 class="text-navy m-0 fw-bold d-flex align-items-center gap-2">
                             <span
@@ -4470,7 +4481,7 @@
                 </div>
 
                 <!-- FILTER PANEL BREAKDOWN AGENT (LENGKAP: WAKTU, UNIT, SPV, TL, KATEGORI, KIP, AGENT) -->
-                <div class="card-custom mb-4" style="border-radius:18px; border:1px solid rgba(226,232,240,0.9); box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+                <div class="card-custom filter-panel-card mb-4" style="border-radius:18px; border:1px solid rgba(226,232,240,0.9); box-shadow:0 4px 20px rgba(0,0,0,0.03);">
                     <div class="d-flex align-items-center justify-content-between mb-3 pb-2 border-bottom">
                         <h5 class="text-navy fw-bold mb-0 d-flex align-items-center gap-2" style="font-size:1rem;">
                             <span style="width:28px; height:28px; border-radius:8px; background:rgba(163,0,48,0.1); color:#A30030; display:inline-flex; align-items:center; justify-content:center; font-size:0.85rem;">
@@ -4994,7 +5005,7 @@
                 </div>
 
                 <!-- FILTER PANEL BREAKDOWN KIP -->
-                <div class="card-custom mb-4" style="border-radius:18px; border:1px solid rgba(226,232,240,0.9); box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+                <div class="card-custom filter-panel-card mb-4" style="border-radius:18px; border:1px solid rgba(226,232,240,0.9); box-shadow:0 4px 20px rgba(0,0,0,0.03);">
                     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                         <h5 class="text-navy m-0 fw-bold d-flex align-items-center gap-2" style="font-size:1rem;">
                             <span style="width:28px; height:28px; border-radius:8px; background:rgba(163,0,48,0.1); color:#A30030; display:inline-flex; align-items:center; justify-content:center; font-size:0.85rem;">
@@ -5352,7 +5363,7 @@
                 </div>
 
                 <!-- FILTER PANEL BANDINGKAN PERIODE -->
-                <div class="card-custom mb-4 compare-filter-card"
+                <div class="card-custom filter-panel-card mb-4 compare-filter-card"
                     style="border-radius: 18px; border: 1px solid rgba(226, 232, 240, 0.9); box-shadow: 0 4px 20px rgba(0,0,0,0.03);">
                     <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom compare-filter-header">
                         <h5 class="text-navy m-0 fw-bold d-flex align-items-center gap-2" style="font-size: 1rem;">
@@ -7643,6 +7654,22 @@
             breakdownModalBootstrap = new bootstrap.Modal(document.getElementById('breakdownDetailModal'));
             userFormBootstrap = new bootstrap.Modal(document.getElementById('userFormModal'));
             restoreSidebarPreference();
+
+            // Elevasi z-index kartu filter secara dinamis saat dropdown dibuka/ditutup
+            document.addEventListener('show.bs.dropdown', function (e) {
+                const card = e.target.closest('.filter-panel-card, .card-custom');
+                if (card) {
+                    card.style.zIndex = '100';
+                    card.classList.add('dropdown-active');
+                }
+            });
+            document.addEventListener('hidden.bs.dropdown', function (e) {
+                const card = e.target.closest('.filter-panel-card, .card-custom');
+                if (card) {
+                    card.style.zIndex = '35';
+                    card.classList.remove('dropdown-active');
+                }
+            });
         };
 
         // ==========================================
@@ -11349,7 +11376,7 @@
                     let rowSourceBy = String(row[15]).trim();
 
                     if (dateRange.indexOf(rowTgl) === -1) return;
-                    if (fUnit !== "" && rowUnit !== fUnit) return;
+                    if (cmpUnits.length > 0 && !cmpUnits.includes(rowUnit.toUpperCase())) return;
                     if (fKatL !== "" && String(row[11]).trim() !== fKatL) return;
                     if (fSourceBy !== "" && rowSourceBy !== fSourceBy) return;
                     if (!def.keys.some(k => rowL.includes(k))) return;
@@ -12364,7 +12391,7 @@
             if (fBln) filterParts.push(fBln);
             if (fTgl) filterParts.push('Tgl 1-' + fTgl);
             if (fThn) filterParts.push(fThn);
-            if (fUnit) filterParts.push(fUnit);
+            if (kipUnits && kipUnits.length > 0) filterParts.push('Unit: ' + kipUnits.join(', '));
             if (fKatL) filterParts.push(fKatL);
             if (fKip) filterParts.push(fKip);
             if (fSrc) filterParts.push(fSrc);
@@ -12381,6 +12408,12 @@
             // Render Table
             kipCurrentPage = 1;
             handleKipTableSearch();
+
+            // Pastikan result container tampil dan empty state tersembunyi
+            const emptyState = document.getElementById('kipEmptyState');
+            const resultContainer = document.getElementById('kipResultContainer');
+            if (emptyState) emptyState.style.display = 'none';
+            if (resultContainer) resultContainer.style.display = 'block';
         }
 
         function renderKipExecutiveSummary(aggregatedList, kipTotalMap, categoryTotalMap, totalTickets) {
