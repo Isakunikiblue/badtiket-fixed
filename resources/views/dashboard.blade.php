@@ -3134,6 +3134,65 @@
     margin-top: 20px;
     text-align: center;
   }
+
+  /* Custom Unit Name Multi-Select Styles */
+  .unit-ms-dropdown {
+    position: relative;
+    width: 100%;
+  }
+  .unit-ms-dropdown .form-select {
+    cursor: pointer;
+    background-color: #fff;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .unit-ms-menu {
+    min-width: 260px;
+    max-width: 330px;
+    border-radius: 12px;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.12), 0 4px 10px rgba(0, 0, 0, 0.06);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background-color: #ffffff;
+    z-index: 1060;
+  }
+  .unit-opt-item {
+    transition: background-color 0.15s ease-in-out;
+    border-radius: 6px;
+    margin-bottom: 2px;
+  }
+  .unit-opt-item:hover {
+    background-color: #F8FAFC;
+  }
+  .unit-opt-item .form-check-input {
+    cursor: pointer;
+    margin-top: 0.25rem;
+  }
+  .unit-opt-item .form-check-label {
+    cursor: pointer;
+    user-select: none;
+    font-weight: 500;
+    color: #334155;
+  }
+  .unit-opt-item .form-check-input:checked ~ .form-check-label {
+    color: #A30030;
+    font-weight: 600;
+  }
+  .unit-ms-options::-webkit-scrollbar {
+    width: 6px;
+  }
+  .unit-ms-options::-webkit-scrollbar-track {
+    background: #F1F5F9;
+    border-radius: 4px;
+  }
+  .unit-ms-options::-webkit-scrollbar-thumb {
+    background: #CBD5E1;
+    border-radius: 4px;
+  }
+  .unit-ms-options::-webkit-scrollbar-thumb:hover {
+    background: #94A3B8;
+  }
 </style>
 
 <!-- 1. HALAMAN LOGIN UTAMA (MODERN TWO-COLUMN CARD) -->
@@ -3915,9 +3974,28 @@
                         </div>
                         <div class="col-lg-3 col-md-6 col-6">
                             <label class="form-label text-muted small fw-bold">Unit Name (Kolom J)</label>
-                            <select id="filUnit" class="form-select">
-                                <option value="">Semua Unit</option>
-                            </select>
+                            <div class="dropdown unit-ms-dropdown" id="dropdown_filUnit">
+                                <button class="form-select text-start d-flex justify-content-between align-items-center" type="button" id="btn_filUnit" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="cursor:pointer; overflow:hidden;">
+                                    <span class="unit-ms-text text-truncate me-2" id="label_filUnit">Semua Unit</span>
+                                    <span class="badge bg-danger rounded-pill unit-ms-badge" id="badge_filUnit" style="display:none; font-size:0.68rem; padding: 0.22em 0.55em;">0</span>
+                                </button>
+                                <div class="dropdown-menu p-2 shadow unit-ms-menu" aria-labelledby="btn_filUnit">
+                                    <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                                        <div class="form-check mb-0 ms-1">
+                                            <input class="form-check-input" type="checkbox" id="checkAll_filUnit" checked onchange="toggleSelectAllUnits('filUnit', this.checked)">
+                                            <label class="form-check-label small fw-bold" for="checkAll_filUnit" style="cursor:pointer;">Pilih Semua</label>
+                                        </div>
+                                        <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" onclick="clearUnitMultiSelect('filUnit')">Reset</button>
+                                    </div>
+                                    <div class="px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Cari unit..." oninput="filterUnitOptions('filUnit', this.value)" style="border-radius:6px; font-size:0.8rem;">
+                                    </div>
+                                    <div class="unit-ms-options" id="options_filUnit" style="max-height: 220px; overflow-y: auto;">
+                                        <!-- Opsi checkbox diisi otomatis oleh JS -->
+                                    </div>
+                                </div>
+                                <select id="filUnit" class="d-none" multiple></select>
+                            </div>
                         </div>
                         <div class="col-lg-3 col-md-6 col-6">
                             <label class="form-label text-muted small fw-bold">Kategori (Kolom L)</label>
@@ -4425,9 +4503,28 @@
                         </div>
                         <div class="col-lg-3 col-md-6 col-6">
                             <label class="form-label text-muted small fw-bold mb-1"><i class="fa-solid fa-building me-1 text-danger"></i>Unit Name (J)</label>
-                            <select id="filBdUnit" class="form-select form-select-sm" style="border-radius:10px;" onchange="onBdUnitChange()">
-                                <option value="">Semua Unit</option>
-                            </select>
+                            <div class="dropdown unit-ms-dropdown" id="dropdown_filBdUnit">
+                                <button class="form-select form-select-sm text-start d-flex justify-content-between align-items-center" type="button" id="btn_filBdUnit" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="border-radius:10px; cursor:pointer; overflow:hidden;">
+                                    <span class="unit-ms-text text-truncate me-2" id="label_filBdUnit">Semua Unit</span>
+                                    <span class="badge bg-danger rounded-pill unit-ms-badge" id="badge_filBdUnit" style="display:none; font-size:0.68rem; padding: 0.22em 0.55em;">0</span>
+                                </button>
+                                <div class="dropdown-menu p-2 shadow unit-ms-menu" aria-labelledby="btn_filBdUnit">
+                                    <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                                        <div class="form-check mb-0 ms-1">
+                                            <input class="form-check-input" type="checkbox" id="checkAll_filBdUnit" checked onchange="toggleSelectAllUnits('filBdUnit', this.checked)">
+                                            <label class="form-check-label small fw-bold" for="checkAll_filBdUnit" style="cursor:pointer;">Pilih Semua</label>
+                                        </div>
+                                        <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" onclick="clearUnitMultiSelect('filBdUnit')">Reset</button>
+                                    </div>
+                                    <div class="px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Cari unit..." oninput="filterUnitOptions('filBdUnit', this.value)" style="border-radius:6px; font-size:0.8rem;">
+                                    </div>
+                                    <div class="unit-ms-options" id="options_filBdUnit" style="max-height: 220px; overflow-y: auto;">
+                                        <!-- Opsi checkbox diisi otomatis oleh JS -->
+                                    </div>
+                                </div>
+                                <select id="filBdUnit" class="d-none" multiple></select>
+                            </div>
                         </div>
                         <div class="col-lg-3 col-md-6 col-6">
                             <label class="form-label text-muted small fw-bold mb-1"><i class="fa-solid fa-diagram-project me-1 text-danger"></i>Source By (P)</label>
@@ -4929,9 +5026,28 @@
                         </div>
                         <div class="col-lg-3 col-md-6 col-6">
                             <label class="form-label text-muted small fw-bold mb-1"><i class="fa-solid fa-building me-1"></i>Unit Name (J)</label>
-                            <select id="filKipUnit" class="form-select form-select-sm" style="border-radius:10px;">
-                                <option value="">Semua Unit</option>
-                            </select>
+                            <div class="dropdown unit-ms-dropdown" id="dropdown_filKipUnit">
+                                <button class="form-select form-select-sm text-start d-flex justify-content-between align-items-center" type="button" id="btn_filKipUnit" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="border-radius:10px; cursor:pointer; overflow:hidden;">
+                                    <span class="unit-ms-text text-truncate me-2" id="label_filKipUnit">Semua Unit</span>
+                                    <span class="badge bg-danger rounded-pill unit-ms-badge" id="badge_filKipUnit" style="display:none; font-size:0.68rem; padding: 0.22em 0.55em;">0</span>
+                                </button>
+                                <div class="dropdown-menu p-2 shadow unit-ms-menu" aria-labelledby="btn_filKipUnit">
+                                    <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                                        <div class="form-check mb-0 ms-1">
+                                            <input class="form-check-input" type="checkbox" id="checkAll_filKipUnit" checked onchange="toggleSelectAllUnits('filKipUnit', this.checked)">
+                                            <label class="form-check-label small fw-bold" for="checkAll_filKipUnit" style="cursor:pointer;">Pilih Semua</label>
+                                        </div>
+                                        <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" onclick="clearUnitMultiSelect('filKipUnit')">Reset</button>
+                                    </div>
+                                    <div class="px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Cari unit..." oninput="filterUnitOptions('filKipUnit', this.value)" style="border-radius:6px; font-size:0.8rem;">
+                                    </div>
+                                    <div class="unit-ms-options" id="options_filKipUnit" style="max-height: 220px; overflow-y: auto;">
+                                        <!-- Opsi checkbox diisi otomatis oleh JS -->
+                                    </div>
+                                </div>
+                                <select id="filKipUnit" class="d-none" multiple></select>
+                            </div>
                         </div>
                         <div class="col-lg-3 col-md-6 col-6">
                             <label class="form-label text-muted small fw-bold mb-1"><i class="fa-solid fa-share-nodes me-1"></i>Source By (P)</label>
@@ -5279,9 +5395,28 @@
                         <div class="col-lg-2 col-md-4 col-6">
                             <label class="form-label text-muted small fw-bold mb-1"><i
                                     class="fa-solid fa-building me-1"></i>Unit Name</label>
-                            <select id="cmpUnit" class="form-select form-select-sm" style="border-radius:10px;">
-                                <option value="">Semua Unit</option>
-                            </select>
+                            <div class="dropdown unit-ms-dropdown" id="dropdown_cmpUnit">
+                                <button class="form-select form-select-sm text-start d-flex justify-content-between align-items-center" type="button" id="btn_cmpUnit" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false" style="border-radius:10px; cursor:pointer; overflow:hidden;">
+                                    <span class="unit-ms-text text-truncate me-2" id="label_cmpUnit">Semua Unit</span>
+                                    <span class="badge bg-danger rounded-pill unit-ms-badge" id="badge_cmpUnit" style="display:none; font-size:0.68rem; padding: 0.22em 0.55em;">0</span>
+                                </button>
+                                <div class="dropdown-menu p-2 shadow unit-ms-menu" aria-labelledby="btn_cmpUnit">
+                                    <div class="d-flex align-items-center justify-content-between pb-2 mb-2 border-bottom">
+                                        <div class="form-check mb-0 ms-1">
+                                            <input class="form-check-input" type="checkbox" id="checkAll_cmpUnit" checked onchange="toggleSelectAllUnits('cmpUnit', this.checked)">
+                                            <label class="form-check-label small fw-bold" for="checkAll_cmpUnit" style="cursor:pointer;">Pilih Semua</label>
+                                        </div>
+                                        <button type="button" class="btn btn-link btn-sm text-decoration-none text-muted p-0 small" onclick="clearUnitMultiSelect('cmpUnit')">Reset</button>
+                                    </div>
+                                    <div class="px-1 mb-2">
+                                        <input type="text" class="form-control form-control-sm" placeholder="Cari unit..." oninput="filterUnitOptions('cmpUnit', this.value)" style="border-radius:6px; font-size:0.8rem;">
+                                    </div>
+                                    <div class="unit-ms-options" id="options_cmpUnit" style="max-height: 220px; overflow-y: auto;">
+                                        <!-- Opsi checkbox diisi otomatis oleh JS -->
+                                    </div>
+                                </div>
+                                <select id="cmpUnit" class="d-none" multiple></select>
+                            </div>
                         </div>
                         <div class="col-lg-2 col-md-4 col-6">
                             <label class="form-label text-muted small fw-bold mb-1"><i
@@ -7510,6 +7645,164 @@
             restoreSidebarPreference();
         };
 
+        // ==========================================
+        // MULTI-SELECT UNIT NAME COMPONENT LOGIC
+        // ==========================================
+        function populateUnitMultiSelect(id, units) {
+            const container = document.getElementById('options_' + id);
+            const hiddenSelect = document.getElementById(id);
+            if (!container) return;
+
+            const list = [...new Set((units || []).map(u => String(u || '').trim()).filter(Boolean))].sort();
+            
+            let html = '';
+            let selectOptionsHtml = '<option value="">Semua Unit</option>';
+            list.forEach((unit, idx) => {
+                const safeUnit = escapeHtml(unit);
+                const safeVal = unit.replace(/"/g, '&quot;');
+                html += `
+                    <div class="form-check py-1 px-2 rounded unit-opt-item">
+                        <input class="form-check-input unit-cb-${id}" type="checkbox" value="${safeVal}" id="cb_${id}_${idx}" checked onchange="onUnitCheckboxChange('${id}')">
+                        <label class="form-check-label w-100 text-truncate" for="cb_${id}_${idx}" style="cursor:pointer; font-size:0.83rem;">
+                            ${safeUnit}
+                        </label>
+                    </div>`;
+                selectOptionsHtml += `<option value="${safeVal}" selected>${safeUnit}</option>`;
+            });
+
+            container.innerHTML = html;
+            if (hiddenSelect) hiddenSelect.innerHTML = selectOptionsHtml;
+
+            const checkAll = document.getElementById('checkAll_' + id);
+            if (checkAll) {
+                checkAll.checked = true;
+                checkAll.indeterminate = false;
+            }
+            updateUnitMultiSelectDisplay(id);
+        }
+
+        function onUnitCheckboxChange(id) {
+            const cbs = document.querySelectorAll('.unit-cb-' + id);
+            const checked = Array.from(cbs).filter(cb => cb.checked);
+            const checkAll = document.getElementById('checkAll_' + id);
+
+            if (checkAll) {
+                if (checked.length === cbs.length) {
+                    checkAll.checked = true;
+                    checkAll.indeterminate = false;
+                } else if (checked.length === 0) {
+                    checkAll.checked = false;
+                    checkAll.indeterminate = false;
+                } else {
+                    checkAll.checked = false;
+                    checkAll.indeterminate = true;
+                }
+            }
+
+            updateUnitMultiSelectDisplay(id);
+
+            if (id === 'filBdUnit' && typeof onBdUnitChange === 'function') {
+                onBdUnitChange();
+            }
+        }
+
+        function toggleSelectAllUnits(id, isChecked) {
+            const cbs = document.querySelectorAll('.unit-cb-' + id);
+            cbs.forEach(cb => { cb.checked = isChecked; });
+            const checkAll = document.getElementById('checkAll_' + id);
+            if (checkAll) {
+                checkAll.checked = isChecked;
+                checkAll.indeterminate = false;
+            }
+            updateUnitMultiSelectDisplay(id);
+            if (id === 'filBdUnit' && typeof onBdUnitChange === 'function') {
+                onBdUnitChange();
+            }
+        }
+
+        function clearUnitMultiSelect(id) {
+            toggleSelectAllUnits(id, true);
+        }
+
+        function filterUnitOptions(id, searchKeyword) {
+            const term = (searchKeyword || '').toLowerCase().trim();
+            const items = document.querySelectorAll('#options_' + id + ' .unit-opt-item');
+            items.forEach(it => {
+                const txt = it.innerText.toLowerCase();
+                it.style.display = txt.includes(term) ? '' : 'none';
+            });
+        }
+
+        function updateUnitMultiSelectDisplay(id) {
+            const cbs = document.querySelectorAll('.unit-cb-' + id);
+            const label = document.getElementById('label_' + id);
+            const badge = document.getElementById('badge_' + id);
+            const hiddenSelect = document.getElementById(id);
+
+            if (!label) return;
+
+            const checked = Array.from(cbs).filter(cb => cb.checked);
+            if (checked.length === cbs.length) {
+                label.innerText = 'Semua Unit';
+                label.title = 'Semua Unit';
+                if (badge) badge.style.display = 'none';
+                if (hiddenSelect) hiddenSelect.value = '';
+            } else if (checked.length === 0) {
+                label.innerText = '0 Unit Dipilih';
+                label.title = 'Tidak ada unit dipilih';
+                if (badge) {
+                    badge.innerText = '0';
+                    badge.style.display = 'inline-block';
+                }
+                if (hiddenSelect) hiddenSelect.value = '';
+            } else if (checked.length === 1) {
+                label.innerText = checked[0].value;
+                label.title = checked[0].value;
+                if (badge) {
+                    badge.innerText = '1';
+                    badge.style.display = 'inline-block';
+                }
+                if (hiddenSelect) hiddenSelect.value = checked[0].value;
+            } else if (checked.length === 2) {
+                const txt = checked.map(c => c.value).join(', ');
+                label.innerText = txt;
+                label.title = txt;
+                if (badge) {
+                    badge.innerText = '2';
+                    badge.style.display = 'inline-block';
+                }
+                if (hiddenSelect) hiddenSelect.value = txt;
+            } else {
+                const txt = checked.length + ' Unit Dipilih';
+                label.innerText = txt;
+                label.title = checked.map(c => c.value).join(', ');
+                if (badge) {
+                    badge.innerText = String(checked.length);
+                    badge.style.display = 'inline-block';
+                }
+                if (hiddenSelect) hiddenSelect.value = checked.map(c => c.value).join(',');
+            }
+        }
+
+        function getSelectedUnits(id) {
+            const cbs = document.querySelectorAll('.unit-cb-' + id);
+            if (!cbs || cbs.length === 0) {
+                const el = document.getElementById(id);
+                if (el && el.tagName === 'SELECT' && el.value) {
+                    return [el.value.trim().toUpperCase()];
+                }
+                return [];
+            }
+            const checked = Array.from(cbs).filter(cb => cb.checked);
+            if (checked.length === cbs.length) {
+                return []; // Semua unit terpilih -> tidak membatasi filter (semua unit ditampilkan)
+            }
+            if (checked.length === 0) {
+                return ['__NONE_SELECTED__']; // 0 unit terpilih -> tidak ada baris yang cocok
+            }
+            return checked.map(cb => cb.value.trim().toUpperCase());
+        }
+
         function populateFilters(filters) {
             const pop = (id, arr) => {
                 const select = document.getElementById(id);
@@ -7526,14 +7819,14 @@
             pop('filTanggal', filters.tanggal);
             pop('filBulan', bulanTerurut);
             pop('filTahun', filters.tahun);
-            pop('filUnit', filters.unit);
+            populateUnitMultiSelect('filUnit', filters.unit);
             pop('filSourceBy', filters.sourceBy || []);
 
             // Isi juga dropdown filter di halaman Breakdown Agent (sumber data sama)
             pop('filBdTanggal', filters.tanggal);
             pop('filBdBulan', bulanTerurut);
             pop('filBdTahun', filters.tahun);
-            pop('filBdUnit', filters.unit);
+            populateUnitMultiSelect('filBdUnit', filters.unit);
             pop('filBdSourceBy', filters.sourceBy || []);
             populateBreakdownFilterDropdowns();
 
@@ -7541,7 +7834,7 @@
             pop('filKipTanggal', filters.tanggal);
             pop('filKipBulan', bulanTerurut);
             pop('filKipTahun', filters.tahun);
-            pop('filKipUnit', filters.unit);
+            populateUnitMultiSelect('filKipUnit', filters.unit);
             pop('filKipSourceBy', filters.sourceBy || []);
 
             // Isi Filter Dropdown Section Baru (Vs) - terurut Januari s/d Desember
@@ -7618,7 +7911,7 @@
             document.getElementById('filTanggal').value = "";
             document.getElementById('filBulan').value = "";
             document.getElementById('filTahun').value = "";
-            document.getElementById('filUnit').value = "";
+            clearUnitMultiSelect('filUnit');
             document.getElementById('filKategoriL').value = "";
             document.getElementById('filSourceBy').value = "";
             const selStatusSgh = document.getElementById('filStatusSanggahan');
@@ -7637,7 +7930,7 @@
             setVal('filBdTanggal', '');
             setVal('filBdBulan', '');
             setVal('filBdTahun', '');
-            setVal('filBdUnit', '');
+            clearUnitMultiSelect('filBdUnit');
             setVal('filBdSourceBy', '');
             setVal('filBdSpv', '');
             setVal('filBdTl', '');
@@ -7660,7 +7953,7 @@
             const fTgl = document.getElementById('filTanggal').value.trim();
             const fBln = document.getElementById('filBulan').value.trim();
             const fThn = document.getElementById('filTahun').value.trim();
-            const fUnit = document.getElementById('filUnit').value.trim();
+            const fUnits = getSelectedUnits('filUnit');
             const fKatL = document.getElementById('filKategoriL').value.trim();
             const fSourceBy = document.getElementById('filSourceBy').value.trim();
             const selStatusSgh = document.getElementById('filStatusSanggahan');
@@ -7683,7 +7976,7 @@
                 let matchTgl = fTgl === "" || (!isNaN(rDate) && rDate >= 1 && rDate <= maxDay);
                 let matchBln = fBln === "" || String(row[1]).trim() === fBln;
                 let matchThn = fThn === "" || String(row[2]).trim() === fThn;
-                let matchUnit = fUnit === "" || String(row[9]).trim() === fUnit;
+                let matchUnit = fUnits.length === 0 || fUnits.includes(String(row[9]).trim().toUpperCase());
                 let matchKatL = fKatL === "" || String(row[11]).trim().toUpperCase() === fKatL.toUpperCase();
                 let matchSourceBy = fSourceBy === "" || String(row[15]).trim() === fSourceBy;
                 let matchSIAD = sSIAD === "" || (row[5] != null && String(row[5]).toLowerCase().includes(sSIAD));
@@ -8351,7 +8644,7 @@
             const vsBefore = document.getElementById('vsBulanBefore').value.trim();
             const vsAfter = document.getElementById('vsBulanAfter').value.trim();
             const vsFilterL = document.getElementById('vsFilterKolomL').value.trim().toUpperCase();
-            const activeUnit = document.getElementById('filUnit').value.trim().toUpperCase();
+            const activeUnits = getSelectedUnits('filUnit');
             const selStatusSgh = document.getElementById('filStatusSanggahan');
             const fStatusSgh = selStatusSgh ? selStatusSgh.value : 'net';
 
@@ -8380,7 +8673,7 @@
                 if (fStatusSgh === 'net' && isSanggahanDiterima(row)) return;
                 if (fStatusSgh === 'only_sanggahan' && !isSanggahanDiterima(row)) return;
 
-                let matchUnit = (activeUnit === "" || rowUnit === activeUnit);
+                let matchUnit = (activeUnits.length === 0 || activeUnits.includes(rowUnit));
                 let matchL = (vsFilterL === "" || rowL === vsFilterL);
 
                 if (matchUnit && matchL) {
@@ -9625,11 +9918,13 @@
 
         function getActiveBreakdownFilters() {
             const getVal = id => { const el = document.getElementById(id); return el ? el.value.trim() : ''; };
+            const bdUnits = getSelectedUnits('filBdUnit');
             return {
                 fTgl: getVal('filBdTanggal'),
                 fBln: getVal('filBdBulan'),
                 fThn: getVal('filBdTahun'),
-                fUnit: getVal('filBdUnit'),
+                fUnits: bdUnits,
+                fUnit: bdUnits.length > 0 ? bdUnits.join(', ') : '',
                 fSourceBy: getVal('filBdSourceBy'),
                 fSpv: getVal('filBdSpv'),
                 fTl: getVal('filBdTl'),
@@ -9657,7 +9952,7 @@
                 let matchTgl = filters.fTgl === "" || (!isNaN(rDate) && rDate >= 1 && rDate <= maxDay);
                 let matchBln = filters.fBln === "" || String(row[1]).trim() === filters.fBln;
                 let matchThn = filters.fThn === "" || String(row[2]).trim() === filters.fThn;
-                let matchUnit = filters.fUnit === "" || String(row[9]).trim() === filters.fUnit;
+                let matchUnit = filters.fUnits.length === 0 || filters.fUnits.includes(String(row[9]).trim().toUpperCase());
                 let matchKatL = filters.fKatL === "" || String(row[11]).trim().toUpperCase() === filters.fKatL.trim().toUpperCase();
                 let matchSourceBy = filters.fSourceBy === "" || String(row[15]).trim() === filters.fSourceBy;
                 let matchSpv = filters.fSpv === "" || String(row[8]).trim() === filters.fSpv;
@@ -9683,7 +9978,7 @@
 
             // Roster Populasi: seluruh agent unik terdaftar dalam lingkup SPV, TL, Unit, Tahun aktif
             let rosterSource = allRecords.filter(r => {
-                let mUnit = filters.fUnit === "" || String(r[9]).trim() === filters.fUnit;
+                let mUnit = filters.fUnits.length === 0 || filters.fUnits.includes(String(r[9]).trim().toUpperCase());
                 let mThn = filters.fThn === "" || String(r[2]).trim() === filters.fThn;
                 let mSpv = filters.fSpv === "" || String(r[8]).trim() === filters.fSpv;
                 let mTl = filters.fTl === "" || String(r[7]).trim() === filters.fTl;
@@ -9742,7 +10037,7 @@
                 let matchTgl = filters.fTgl === "" || (!isNaN(rDate) && rDate >= 1 && rDate <= maxDay);
                 let matchBln = filters.fBln === "" || String(r[1]).trim() === filters.fBln;
                 let matchThn = filters.fThn === "" || String(r[2]).trim() === filters.fThn;
-                let matchUnit = filters.fUnit === "" || String(r[9]).trim() === filters.fUnit;
+                let matchUnit = filters.fUnits.length === 0 || filters.fUnits.includes(String(r[9]).trim().toUpperCase());
                 let matchKatL = filters.fKatL === "" || String(r[11] || '').trim().toUpperCase() === filters.fKatL.trim().toUpperCase();
                 let matchSourceBy = filters.fSourceBy === "" || String(r[15]).trim() === filters.fSourceBy;
                 let matchSpv = filters.fSpv === "" || String(r[8]).trim() === filters.fSpv;
@@ -10294,16 +10589,14 @@
             if (selBulanB.options.length > 1) selBulanB.selectedIndex = 1;
             else if (selBulanB.options.length > 0) selBulanB.selectedIndex = 0;
 
-            const selUnit = document.getElementById('cmpUnit');
             const selKategoriL = document.getElementById('cmpKategoriL');
             const selSourceBy = document.getElementById('cmpSourceBy');
-            selUnit.innerHTML = '<option value="">Semua Unit</option>';
             selKategoriL.innerHTML = '<option value="">Semua Kategori</option>';
             selSourceBy.innerHTML = '<option value="">Semua Source</option>';
             let listUnit = [...new Set(allRecords.map(row => row[9]).filter(x => x && x.toString().trim() !== ""))].sort();
             let listL = [...new Set(allRecords.map(row => row[11]).filter(x => x && x.toString().trim() !== ""))].sort();
             let listSourceBy = [...new Set(allRecords.map(row => row[15]).filter(x => x && x.toString().trim() !== ""))].sort();
-            listUnit.forEach(val => { selUnit.options[selUnit.options.length] = new Option(val, val); });
+            populateUnitMultiSelect('cmpUnit', listUnit);
             listL.forEach(val => { selKategoriL.options[selKategoriL.options.length] = new Option(val, val); });
             listSourceBy.forEach(val => { selSourceBy.options[selSourceBy.options.length] = new Option(val, val); });
             const selStatusSgh = document.getElementById('cmpStatusSanggahan');
@@ -10679,6 +10972,7 @@
 
         function resetCompareRange() {
             populateCompareRangeFilters();
+            clearUnitMultiSelect('cmpUnit');
             const execRow = document.getElementById('compareExecutiveSummaryRow');
             if (execRow) execRow.style.display = 'none';
             const sghRow = document.getElementById('compareSanggahanBoxRow');
@@ -10708,7 +11002,7 @@
             const tglAkhir = parseInt(document.getElementById('cmpTglAkhir').value, 10);
             const bulanA = document.getElementById('cmpBulanA').value.trim();
             const bulanB = document.getElementById('cmpBulanB').value.trim();
-            const fUnit = document.getElementById('cmpUnit').value.trim();
+            const cmpUnits = getSelectedUnits('cmpUnit');
             const fKatL = document.getElementById('cmpKategoriL').value.trim();
             const fSourceBy = document.getElementById('cmpSourceBy').value.trim();
             const selStatusSgh = document.getElementById('cmpStatusSanggahan');
@@ -10744,7 +11038,7 @@
                 let rowSourceBy = String(row[15]).trim();
 
                 if (dateRange.indexOf(rowTgl) === -1) return;
-                if (fUnit !== "" && rowUnit !== fUnit) return;
+                if (cmpUnits.length > 0 && !cmpUnits.includes(rowUnit.toUpperCase())) return;
                 if (fKatL !== "" && rowL !== fKatL) return;
                 if (fSourceBy !== "" && rowSourceBy !== fSourceBy) return;
 
@@ -11386,7 +11680,7 @@
             const bulanB = document.getElementById('bdTrendBulanB') ? document.getElementById('bdTrendBulanB').value.trim() : '';
             const fTgl = document.getElementById('filBdTanggal') ? document.getElementById('filBdTanggal').value.trim() : '';
             const fThn = document.getElementById('filBdTahun') ? document.getElementById('filBdTahun').value.trim() : '';
-            const fUnit = document.getElementById('filBdUnit') ? document.getElementById('filBdUnit').value.trim() : '';
+            const bdUnits = getSelectedUnits('filBdUnit');
             const fKatL = document.getElementById('filBdKategoriL') ? document.getElementById('filBdKategoriL').value.trim() : '';
             const fSourceBy = document.getElementById('filBdSourceBy') ? document.getElementById('filBdSourceBy').value.trim() : '';
             const fSpv = document.getElementById('filBdSpv') ? document.getElementById('filBdSpv').value.trim() : '';
@@ -11409,7 +11703,7 @@
 
             // Sumber data untuk komparasi Bulan A vs Bulan B (tersaring SPV, TL, Unit, Kat, KIP, Source, Agent Search)
             let compareSource = allRecords.filter(row => {
-                let matchUnit = fUnit === "" || String(row[9]).trim() === fUnit;
+                let matchUnit = bdUnits.length === 0 || bdUnits.includes(String(row[9]).trim().toUpperCase());
                 let matchKatL = fKatL === "" || String(row[11]).trim().toUpperCase() === fKatL.trim().toUpperCase();
                 let matchSourceBy = fSourceBy === "" || String(row[15]).trim() === fSourceBy;
                 let matchSpv = fSpv === "" || String(row[8]).trim() === fSpv;
@@ -11665,7 +11959,7 @@
             const vsAfter = document.getElementById('bdVsBulanAfter') ? document.getElementById('bdVsBulanAfter').value.trim() : '';
             const fTgl = document.getElementById('filBdTanggal') ? document.getElementById('filBdTanggal').value.trim() : '';
             const fThn = document.getElementById('filBdTahun') ? document.getElementById('filBdTahun').value.trim() : '';
-            const fUnit = document.getElementById('filBdUnit') ? document.getElementById('filBdUnit').value.trim().toUpperCase() : '';
+            const bdUnits = getSelectedUnits('filBdUnit');
             const fKatL = document.getElementById('filBdKategoriL') ? document.getElementById('filBdKategoriL').value.trim().toUpperCase() : '';
             const fSourceBy = document.getElementById('filBdSourceBy') ? document.getElementById('filBdSourceBy').value.trim().toUpperCase() : '';
 
@@ -11712,7 +12006,7 @@
                 let rDate = parseInt(rowTgl, 10);
                 let matchTgl = (fTgl === "" || (!isNaN(rDate) && rDate >= 1 && rDate <= maxDay));
                 let matchThn = (fThn === "" || rowThn === fThn);
-                let matchUnit = (fUnit === "" || rowUnit === fUnit);
+                let matchUnit = (bdUnits.length === 0 || bdUnits.includes(rowUnit));
                 let matchL = (fKatL === "" || rowL === fKatL);
                 let matchSourceBy = (fSourceBy === "" || rowSourceBy === fSourceBy);
 
@@ -11926,7 +12220,7 @@
             setVal('filKipTanggal', '');
             setVal('filKipBulan', '');
             setVal('filKipTahun', '');
-            setVal('filKipUnit', '');
+            clearUnitMultiSelect('filKipUnit');
             setVal('filKipSourceBy', '');
             setVal('filKipKategoriL', '');
             setVal('filKipNama', '');
@@ -11991,7 +12285,7 @@
             const fTgl = (document.getElementById('filKipTanggal')?.value || '').trim();
             const fBln = (document.getElementById('filKipBulan')?.value || '').trim().toUpperCase();
             const fThn = (document.getElementById('filKipTahun')?.value || '').trim();
-            const fUnit = (document.getElementById('filKipUnit')?.value || '').trim();
+            const kipUnits = getSelectedUnits('filKipUnit');
             const fSrc = (document.getElementById('filKipSourceBy')?.value || '').trim();
             const fKatL = (document.getElementById('filKipKategoriL')?.value || '').trim();
             const fKip = (document.getElementById('filKipNama')?.value || '').trim();
@@ -12011,7 +12305,7 @@
                 if (!matchTgl) return false;
                 if (fBln && String(row[1]).trim().toUpperCase() !== fBln) return false;
                 if (fThn && String(row[2]).trim() !== fThn) return false;
-                if (fUnit && String(row[9]).trim() !== fUnit) return false;
+                if (kipUnits.length > 0 && !kipUnits.includes(String(row[9]).trim().toUpperCase())) return false;
                 if (fSrc && String(row[15]).trim() !== fSrc) return false;
                 if (fKatL && String(row[11]).trim() !== fKatL) return false;
                 if (fKip && String(row[10]).trim() !== fKip) return false;
@@ -12135,7 +12429,7 @@
             const fTglK = (document.getElementById('filKipTanggal')?.value || '').trim();
             const fBlnK = (document.getElementById('filKipBulan')?.value || '').trim().toUpperCase();
             const fThnK = (document.getElementById('filKipTahun')?.value || '').trim();
-            const fUnitK = (document.getElementById('filKipUnit')?.value || '').trim();
+            const kipUnitsK = getSelectedUnits('filKipUnit');
             const fSrcK = (document.getElementById('filKipSourceBy')?.value || '').trim();
             const fKatLK = (document.getElementById('filKipKategoriL')?.value || '').trim();
             const fKipK = (document.getElementById('filKipNama')?.value || '').trim();
@@ -12154,7 +12448,7 @@
                 if (!matchTgl) return;
                 if (fBlnK && String(row[1]).trim().toUpperCase() !== fBlnK) return;
                 if (fThnK && String(row[2]).trim() !== fThnK) return;
-                if (fUnitK && String(row[9]).trim() !== fUnitK) return;
+                if (kipUnitsK.length > 0 && !kipUnitsK.includes(String(row[9]).trim().toUpperCase())) return;
                 if (fSrcK && String(row[15]).trim() !== fSrcK) return;
                 if (fKatLK && String(row[11]).trim() !== fKatLK) return;
                 if (fKipK && String(row[10]).trim() !== fKipK) return;
