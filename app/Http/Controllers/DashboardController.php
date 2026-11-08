@@ -18,23 +18,31 @@ class DashboardController extends Controller
 
     /**
      * Halaman Utama Dashboard MATA
-     * Data dimuat secara asinkron (client-side fetch) agar halaman awal memuat secara instan (<50ms)
-     * dan ukuran respons HTML tetap ringan (~1.4MB), jauh di bawah batas 4.5MB Vercel Serverless.
      */
     public function index(): View
     {
+        $sessionUser = session('mata_user');
+
         return view('dashboard', [
             'dashboardData' => null,
             'sourceType' => 'google_apps_script_api',
             'cachedAt' => now()->toDateTimeString(),
+            'currentUser' => $sessionUser,
         ]);
     }
 
     /**
-     * Endpoint Sinkronisasi Data Manual (Bypass Cache)
+     * Endpoint Sinkronisasi Data Manual (Bypass Cache) - Memerlukan Sesi Login Aktif
      */
-    public function syncData(): JsonResponse
+    public function syncData(Request $request): JsonResponse
     {
+        if (!session()->has('mata_user')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Akses ditolak: Sesi login diperlukan untuk sinkronisasi dataset.',
+            ], 401);
+        }
+
         $freshData = $this->sheetService->getDashboardData(forceRefresh: true);
 
         return response()->json([
@@ -48,10 +56,17 @@ class DashboardController extends Controller
     }
 
     /**
-     * Endpoint API JSON data untuk client-side (dengan kompresi gzip agar payload < 400KB & sangat cepat)
+     * Endpoint API JSON data untuk client-side (dengan Proteksi Autentikasi Sisi-Server & Kompresi Gzip)
      */
     public function getData(Request $request)
     {
+        if (!session()->has('mata_user')) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Akses ditolak: Sesi login diperlukan untuk mengakses dataset.',
+            ], 401);
+        }
+
         $data = $this->sheetService->getDashboardData();
         $json = json_encode($data);
 
@@ -59,13 +74,13 @@ class DashboardController extends Controller
             return response(gzencode($json, 6), 200, [
                 'Content-Type' => 'application/json',
                 'Content-Encoding' => 'gzip',
-                'Cache-Control' => 'public, max-age=180',
+                'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
             ]);
         }
 
         return response($json, 200, [
             'Content-Type' => 'application/json',
-            'Cache-Control' => 'public, max-age=180',
+            'Cache-Control' => 'private, no-cache, no-store, must-revalidate',
         ]);
     }
 }

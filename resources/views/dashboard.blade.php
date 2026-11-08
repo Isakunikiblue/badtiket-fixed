@@ -2382,9 +2382,12 @@
 
                 function executeApiCall(action, params, onSuccess, onFail) {
                     if (action === 'getDashboardData') {
-                        // Tarik data dashboard dari Laravel backend (atau fallback Google Apps Script)
+                        // Tarik data dashboard dari Laravel backend terlindungi
                         fetch('/mata-api/dashboard-data')
                             .then(r => {
+                                if (r.status === 401) {
+                                    throw new Error('Sesi login telah berakhir atau belum valid.');
+                                }
                                 if (!r.ok) throw new Error('Laravel HTTP ' + r.status);
                                 return r.json();
                             })
@@ -2392,14 +2395,9 @@
                                 if (onSuccess) onSuccess(data);
                             })
                             .catch(err => {
-                                console.warn('Backend fetch gagal, mencoba fallback GAS...', err);
-                                fetch(gasExecUrl + '?action=getDashboardData')
-                                    .then(r => r.json())
-                                    .then(data => { if (onSuccess) onSuccess(data); })
-                                    .catch(e => {
-                                        if (onFail) onFail(e);
-                                        else console.error('Gagal memuat dataset dashboard:', e);
-                                    });
+                                console.warn('Fetch dataset gagal:', err);
+                                if (onFail) onFail(err);
+                                else console.error('Gagal memuat dataset dashboard:', err);
                             });
                         return;
                     }
@@ -3453,9 +3451,9 @@
 </div>
 
 <script>
-  // Data akun yang sedang login, dipakai di seluruh halaman (termasuk Index.html)
-  let currentUsername = '';
-  let currentUserRole = '';
+  // Data akun yang sedang login, diinisialisasi dari sesi server yang aman
+  let currentUsername = @json($currentUser['username'] ?? '');
+  let currentUserRole = @json($currentUser['role'] ?? '');
 
   // ===================== QUOTE MOTIVASI, BERGANTI OTOMATIS ===================== //
   const ADAPTIVE_QUOTES = [
@@ -3613,16 +3611,20 @@
             }
             transitionToDashboard();
           } else {
-            alertBox.innerText = (result && result.pending)
-              ? "Akun Anda masih menunggu persetujuan Superadmin."
-              : "Username atau Password salah!";
+            let errMsg = "Username atau Password salah!";
+            if (result && result.pending) {
+              errMsg = "Akun Anda masih menunggu persetujuan Superadmin.";
+            } else if (result && result.error) {
+              errMsg = result.error;
+            }
+            alertBox.innerText = errMsg;
             alertBox.classList.remove('d-none');
             btn.disabled = false;
             btn.innerHTML = '<span>Login</span> <span style="font-size:1.15rem; line-height:1;">&rarr;</span>';
           }
         })
         .withFailureHandler(function (error) {
-          alertBox.innerText = "Terjadi kesalahan sistem, coba lagi.";
+          alertBox.innerText = (error && error.message) ? error.message : "Terjadi kesalahan sistem, coba lagi.";
           alertBox.classList.remove('d-none');
           btn.disabled = false;
           btn.innerHTML = '<span>Login</span> <span style="font-size:1.15rem; line-height:1;">&rarr;</span>';
@@ -3630,12 +3632,10 @@
         })
         .validateLogin(u, p);
     } else {
-      // Fallback preview lokal
-      setTimeout(function() {
-        currentUsername = u;
-        currentUserRole = 'superadmin';
-        transitionToDashboard();
-      }, 700);
+      alertBox.innerText = "Koneksi ke backend belum siap. Silakan refresh halaman.";
+      alertBox.classList.remove('d-none');
+      btn.disabled = false;
+      btn.innerHTML = '<span>Login</span> <span style="font-size:1.15rem; line-height:1;">&rarr;</span>';
     }
   }
 
@@ -7329,6 +7329,15 @@
             }
             hideWatermark();
 
+            // Terminasi Sesi Server
+            try {
+                fetch('/mata-api/rpc', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'logout' })
+                }).catch(function () { });
+            } catch (e) { }
+
             // Tutup modal apapun yang sedang terbuka
             try {
                 const openModals = document.querySelectorAll('.modal.show');
@@ -7614,6 +7623,10 @@
             google.script.run.withSuccessHandler(function (response) {
                 if (response && response.error) {
                     alert('Gagal memuat data: ' + response.error);
+                    if (String(response.error).toLowerCase().includes('sesi') || String(response.error).toLowerCase().includes('unauthorized')) {
+                        handleLogout();
+                        return;
+                    }
                 }
 
                 const processRecords = (records) => {
@@ -7684,6 +7697,11 @@
                     card.classList.remove('dropdown-active');
                 }
             });
+
+            // Jika sudah terautentikasi di sesi server, otomatis masuk ke dashboard
+            if (currentUsername) {
+                transitionToDashboard();
+            }
         };
 
         // ==========================================
@@ -9090,8 +9108,8 @@
             let rowsHtml = sortedAgents.map((item, index) => `
           <tr>
             <td><span class="badge badge-solid-gray px-2 py-2">${index + 1}</span></td>
-            <td><span class="agent-name-style">${item[0]}</span></td>
-            <td><span class="unit-name-style">${item[1].unit || '-'}</span></td>
+            <td><span class="agent-name-style">${escapeHtml(item[0])}</span></td>
+            <td><span class="unit-name-style">${escapeHtml(item[1].unit || '-')}</span></td>
             <td class="text-end fw-bold">
               <span class="clickable-ticket" onclick="showAgentPopupDetail('${escapeJsAttr(item[0])}')">${item[1].count} Tiket</span>
             </td>
@@ -9111,19 +9129,19 @@
             matchedDetails.forEach(row => {
                 let tr = document.createElement('tr');
                 tr.innerHTML = `
-          <td>${row[3] || '-'}</td>
-          <td>${row[5] || '-'}</td>
-          <td><strong>${row[6] || '-'}</strong></td>
-          <td>${row[7] || '-'}</td>
-          <td>${row[8] || '-'}</td>
-          <td>${row[9] || '-'}</td>
-          <td>${row[4] || '-'}</td>
-          <td><span class="badge bg-dark">${row[10] || '-'}</span></td>
-          <td><span class="text-danger fw-bold">${row[11] || '-'}</span></td>
-          <td class="col-detil-m"><small>${row[12] || '-'}</small></td>
-          <td class="col-notes-n"><small>${maskNotesKolomN(row[13]) || '-'}</small></td>
-          <td>${isSanggahanDiterima(row) ? '<span class="badge bg-success" style="font-size:0.7rem;"><i class="fa-solid fa-circle-check me-1"></i>SANGGAHAN DITERIMA</span>' : (row[14] || '-')}</td>
-          <td>${row[15] || '-'}</td>
+          <td>${escapeHtml(row[3]) || '-'}</td>
+          <td>${escapeHtml(row[5]) || '-'}</td>
+          <td><strong>${escapeHtml(row[6]) || '-'}</strong></td>
+          <td>${escapeHtml(row[7]) || '-'}</td>
+          <td>${escapeHtml(row[8]) || '-'}</td>
+          <td>${escapeHtml(row[9]) || '-'}</td>
+          <td>${escapeHtml(row[4]) || '-'}</td>
+          <td><span class="badge bg-dark">${escapeHtml(row[10]) || '-'}</span></td>
+          <td><span class="text-danger fw-bold">${escapeHtml(row[11]) || '-'}</span></td>
+          <td class="col-detil-m"><small>${escapeHtml(row[12]) || '-'}</small></td>
+          <td class="col-notes-n"><small>${maskNotesKolomN(escapeHtml(row[13])) || '-'}</small></td>
+          <td>${isSanggahanDiterima(row) ? '<span class="badge bg-success" style="font-size:0.7rem;"><i class="fa-solid fa-circle-check me-1"></i>SANGGAHAN DITERIMA</span>' : (escapeHtml(row[14]) || '-')}</td>
+          <td>${escapeHtml(row[15]) || '-'}</td>
         `;
                 tbody.appendChild(tr);
             });
@@ -12867,11 +12885,11 @@ REKOMENDASI ACTION:
                 const detailsSummarized = summarizeKipTexts(row.details, 2);
                 const notesSummarized = summarizeKipTexts(row.notes, 2);
 
-                const detailsHtml = detailsSummarized.map(d => `<div class="kip-tag-detail"><i class="fa-solid fa-circle-exclamation me-1" style="font-size:0.7rem;"></i>${d}</div>`).join('');
-                const notesHtml = notesSummarized.map(n => `<div class="kip-tag-notes"><i class="fa-solid fa-comment-dots me-1" style="font-size:0.7rem;"></i>${n}</div>`).join('');
+                const detailsHtml = detailsSummarized.map(d => `<div class="kip-tag-detail"><i class="fa-solid fa-circle-exclamation me-1" style="font-size:0.7rem;"></i>${escapeHtml(d)}</div>`).join('');
+                const notesHtml = notesSummarized.map(n => `<div class="kip-tag-notes"><i class="fa-solid fa-comment-dots me-1" style="font-size:0.7rem;"></i>${escapeHtml(n)}</div>`).join('');
 
-                const escapedKip = row.kip.replace(/'/g, "\\'");
-                const escapedKat = row.kategoriL.replace(/'/g, "\\'");
+                const escapedKip = escapeJsAttr(row.kip);
+                const escapedKat = escapeJsAttr(row.kategoriL);
 
                 htmlRows += `
                     <tr>
@@ -12879,11 +12897,11 @@ REKOMENDASI ACTION:
                             <span class="kip-badge-rank ${rankClass}">${globalIdx}</span>
                         </td>
                         <td>
-                            <strong class="text-navy">${row.kip}</strong>
+                            <strong class="text-navy">${escapeHtml(row.kip)}</strong>
                         </td>
                         <td>
                             <span class="badge" style="background:rgba(163,0,48,0.08); color:#A30030; border:1px solid rgba(163,0,48,0.2); font-weight:600; font-size:0.76rem; border-radius:6px; padding:5px 8px;">
-                                ${row.kategoriL}
+                                ${escapeHtml(row.kategoriL)}
                             </span>
                         </td>
                         <td class="text-center" style="min-width:130px;">
@@ -12968,19 +12986,19 @@ REKOMENDASI ACTION:
                 matchedTickets.forEach(row => {
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
-                        <td>${row[3] || '-'}</td>
-                        <td>${row[5] || '-'}</td>
-                        <td><strong>${row[6] || '-'}</strong></td>
-                        <td>${row[7] || '-'}</td>
-                        <td>${row[8] || '-'}</td>
-                        <td>${row[9] || '-'}</td>
-                        <td>${row[4] || '-'}</td>
-                        <td><span class="badge bg-dark">${row[10] || '-'}</span></td>
-                        <td><span class="text-danger fw-bold">${row[11] || '-'}</span></td>
-                        <td class="col-detil-m"><small>${row[12] || '-'}</small></td>
-                        <td class="col-notes-n"><small>${maskNotesKolomN(row[13]) || '-'}</small></td>
-                        <td>${isSanggahanDiterima(row) ? '<span class="badge bg-success" style="font-size:0.7rem;"><i class="fa-solid fa-circle-check me-1"></i>SANGGAHAN DITERIMA</span>' : (row[14] || '-')}</td>
-                        <td>${row[15] || '-'}</td>
+                        <td>${escapeHtml(row[3]) || '-'}</td>
+                        <td>${escapeHtml(row[5]) || '-'}</td>
+                        <td><strong>${escapeHtml(row[6]) || '-'}</strong></td>
+                        <td>${escapeHtml(row[7]) || '-'}</td>
+                        <td>${escapeHtml(row[8]) || '-'}</td>
+                        <td>${escapeHtml(row[9]) || '-'}</td>
+                        <td>${escapeHtml(row[4]) || '-'}</td>
+                        <td><span class="badge bg-dark">${escapeHtml(row[10]) || '-'}</span></td>
+                        <td><span class="text-danger fw-bold">${escapeHtml(row[11]) || '-'}</span></td>
+                        <td class="col-detil-m"><small>${escapeHtml(row[12]) || '-'}</small></td>
+                        <td class="col-notes-n"><small>${maskNotesKolomN(escapeHtml(row[13])) || '-'}</small></td>
+                        <td>${isSanggahanDiterima(row) ? '<span class="badge bg-success" style="font-size:0.7rem;"><i class="fa-solid fa-circle-check me-1"></i>SANGGAHAN DITERIMA</span>' : (escapeHtml(row[14]) || '-')}</td>
+                        <td>${escapeHtml(row[15]) || '-'}</td>
                     `;
                     tbody.appendChild(tr);
                 });

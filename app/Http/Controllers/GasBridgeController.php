@@ -6,7 +6,9 @@ use App\Services\GoogleSheetService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\RateLimiter;
 
 class GasBridgeController extends Controller
 {
@@ -19,7 +21,7 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Dispatcher RPC serbaguna untuk bridge google.script.run
+     * Dispatcher RPC serbaguna untuk bridge google.script.run dengan Otorisasi Sisi-Server (Server-Side Guard)
      */
     public function handleRpc(Request $request): JsonResponse
     {
@@ -36,38 +38,55 @@ class GasBridgeController extends Controller
 
         try {
             switch ($action) {
+                // ==================== AUTENTIKASI & SESI ====================
                 case 'validateLogin':
                 case 'loginUser':
                     $u = $params['username'] ?? ($params['args_array'][0] ?? '');
                     $p = $params['password'] ?? ($params['args_array'][1] ?? '');
-                    return response()->json($this->validateLogin($u, $p));
+                    return response()->json($this->validateLogin($request, $u, $p));
 
+                case 'logout':
+                case 'logoutUser':
+                    session()->forget('mata_user');
+                    session()->flush();
+                    return response()->json(['success' => true]);
+
+                case 'checkSession':
+                case 'getSessionUser':
+                    $sUser = session('mata_user');
+                    return response()->json([
+                        'success' => !empty($sUser),
+                        'user' => $sUser,
+                    ]);
+
+                // ==================== MANAJEMEN AKUN (SUPERADMIN ONLY) ====================
                 case 'getUsers':
                 case 'getAllUsers':
-                    $reqUser = $params['requesterUsername'] ?? ($params['args_array'][0] ?? 'superadmin');
-                    return response()->json($this->getUsers($reqUser));
+                    if ($denied = $this->requireAuth()) return $denied;
+                    return response()->json($this->getUsers());
 
                 case 'addUser':
-                    $cUser = $params['currentUser'] ?? ($params['args_array'][0] ?? '');
+                    if ($denied = $this->requireSuperadmin()) return $denied;
                     $uName = $params['username'] ?? ($params['args_array'][1] ?? '');
                     $uPass = $params['password'] ?? ($params['args_array'][2] ?? '');
                     $uRole = $params['role'] ?? ($params['args_array'][3] ?? 'user');
                     $uNama = $params['nama'] ?? ($params['args_array'][4] ?? '');
-                    return response()->json($this->addUser($cUser, $uName, $uPass, $uRole, $uNama));
+                    return response()->json($this->addUser($uName, $uPass, $uRole, $uNama));
 
                 case 'updateUser':
-                    $cUser = $params['currentUser'] ?? ($params['args_array'][0] ?? '');
+                    if ($denied = $this->requireSuperadmin()) return $denied;
                     $uName = $params['username'] ?? ($params['args_array'][1] ?? '');
                     $uPass = $params['password'] ?? ($params['args_array'][2] ?? '');
                     $uRole = $params['role'] ?? ($params['args_array'][3] ?? 'user');
                     $uNama = $params['nama'] ?? ($params['args_array'][4] ?? '');
-                    return response()->json($this->updateUser($cUser, $uName, $uPass, $uRole, $uNama));
+                    return response()->json($this->updateUser($uName, $uPass, $uRole, $uNama));
 
                 case 'deleteUser':
-                    $cUser = $params['currentUser'] ?? ($params['args_array'][0] ?? '');
+                    if ($denied = $this->requireSuperadmin()) return $denied;
                     $uName = $params['username'] ?? ($params['args_array'][1] ?? '');
-                    return response()->json($this->deleteUser($cUser, $uName));
+                    return response()->json($this->deleteUser($uName));
 
+                // ==================== PERMOHONAN AKSES ====================
                 case 'requestAccess':
                     $csdm = $params['namaLengkap'] ?? $params['csdm'] ?? ($params['args_array'][0] ?? '');
                     $nama = $params['username'] ?? $params['nama'] ?? ($params['args_array'][1] ?? '');
@@ -75,43 +94,44 @@ class GasBridgeController extends Controller
                     return response()->json($this->requestAccess($csdm, $nama, $pass));
 
                 case 'getPendingRequests':
+                    if ($denied = $this->requireSuperadmin()) return $denied;
                     return response()->json($this->getPendingRequests());
 
                 case 'approveRequest':
-                    $cUser = $params['currentUser'] ?? ($params['args_array'][0] ?? 'superadmin');
+                    if ($denied = $this->requireSuperadmin()) return $denied;
                     $id = $params['id'] ?? ($params['args_array'][1] ?? '');
-                    return response()->json($this->approveRequest($cUser, $id));
+                    return response()->json($this->approveRequest($id));
 
                 case 'rejectRequest':
-                    $cUser = $params['currentUser'] ?? ($params['args_array'][0] ?? 'superadmin');
+                    if ($denied = $this->requireSuperadmin()) return $denied;
                     $id = $params['id'] ?? ($params['args_array'][1] ?? '');
-                    return response()->json($this->rejectRequest($cUser, $id));
+                    return response()->json($this->rejectRequest($id));
 
+                // ==================== LOG AKTIVITAS & AUDIT ====================
                 case 'logActivity':
-                    $uName = $params['username'] ?? ($params['args_array'][0] ?? '');
-                    $uRole = $params['role'] ?? ($params['args_array'][1] ?? 'user');
+                    $sUser = session('mata_user');
+                    $uName = $sUser['username'] ?? ($params['username'] ?? ($params['args_array'][0] ?? 'guest'));
+                    $uRole = $sUser['role'] ?? ($params['role'] ?? ($params['args_array'][1] ?? 'user'));
                     $act = $params['activity'] ?? ($params['args_array'][2] ?? '');
                     return response()->json($this->logActivity($uName, $uRole, $act));
 
                 case 'getActivityLogs':
-                    $reqUser = $params['requesterUsername'] ?? ($params['args_array'][0] ?? 'superadmin');
-                    return response()->json($this->getActivityLogs($reqUser));
-
                 case 'exportActivityLogs':
-                    $reqUser = $params['requesterUsername'] ?? ($params['args_array'][0] ?? 'superadmin');
-                    return response()->json($this->exportActivityLogs($reqUser));
+                    if ($denied = $this->requireSuperadmin()) return $denied;
+                    return response()->json($this->getActivityLogs());
 
+                // ==================== PENGATURAN SISTEM ====================
                 case 'getColumnVisibilitySettings':
-                    $uName = $params['username'] ?? ($params['args_array'][0] ?? '');
-                    return response()->json($this->getColumnVisibilitySettings($uName));
+                    return response()->json($this->getColumnVisibilitySettings());
 
                 case 'setColumnVisibilitySettings':
-                    $uName = $params['username'] ?? ($params['args_array'][0] ?? '');
+                    if ($denied = $this->requireSuperadmin()) return $denied;
                     $hDetil = filter_var($params['hideDetil'] ?? ($params['args_array'][1] ?? false), FILTER_VALIDATE_BOOLEAN);
                     $hNotes = filter_var($params['hideNotes'] ?? ($params['args_array'][2] ?? false), FILTER_VALIDATE_BOOLEAN);
-                    return response()->json($this->setColumnVisibilitySettings($uName, $hDetil, $hNotes));
+                    return response()->json($this->setColumnVisibilitySettings($hDetil, $hNotes));
 
                 case 'getDashboardData':
+                    if ($denied = $this->requireAuth()) return $denied;
                     return response()->json($this->sheetService->getDashboardData());
 
                 default:
@@ -124,13 +144,43 @@ class GasBridgeController extends Controller
             Log::error('GasBridgeController error on action ' . $action . ': ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'error' => $e->getMessage(),
+                'error' => 'Terjadi kesalahan sistem internal: ' . $e->getMessage(),
             ], 500);
         }
     }
 
     /**
-     * Hash password sesuai algoritma Code.gs (SHA-256 + Salt MATA)
+     * Otorisasi ketat: hanya Superadmin yang boleh lanjut
+     */
+    protected function requireSuperadmin(): ?JsonResponse
+    {
+        $sessionUser = session('mata_user');
+        if (!$sessionUser || ($sessionUser['role'] ?? '') !== 'superadmin') {
+            return response()->json([
+                'success' => false,
+                'error' => 'Akses ditolak: Operasi ini membutuhkan hak akses Superadmin yang sah.',
+            ], 403);
+        }
+        return null;
+    }
+
+    /**
+     * Otorisasi dasar: Pengguna wajib login terlebih dahulu
+     */
+    protected function requireAuth(): ?JsonResponse
+    {
+        $sessionUser = session('mata_user');
+        if (!$sessionUser) {
+            return response()->json([
+                'success' => false,
+                'error' => 'Akses ditolak: Silakan login terlebih dahulu untuk melanjutkan.',
+            ], 401);
+        }
+        return null;
+    }
+
+    /**
+     * Hash password satu arah (SHA-256 + Salt MATA)
      */
     protected function hashPassword(string $password): string
     {
@@ -141,7 +191,7 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Path file JSON penyimpanan data akun
+     * Path file JSON penyimpanan data akun lokal
      */
     protected function getUsersFilePath(): string
     {
@@ -153,18 +203,16 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Ambil akun-akun terdaftar langsung dari Google Spreadsheet / Google Apps Script
+     * Ambil akun-akun terdaftar dari Google Apps Script / Spreadsheet tanpa mengekspos kredensial
      */
     protected function fetchUsersFromGoogle(): array
     {
         $webAppUrl = config('services.google_sheets.webapp_url');
-        $sheetId = config('services.google_sheets.spreadsheet_id');
         $googleUsers = [];
 
-        // 1. Coba ambil dari Google Apps Script Web App (?action=getUsers)
         if (!empty($webAppUrl)) {
             try {
-                $res = \Illuminate\Support\Facades\Http::timeout(10)
+                $res = Http::timeout(10)
                     ->withOptions(['allow_redirects' => true])
                     ->get($webAppUrl, ['action' => 'getUsers']);
 
@@ -175,8 +223,6 @@ class GasBridgeController extends Controller
                         if (!empty($u['username'])) {
                             $googleUsers[] = [
                                 'username' => trim($u['username']),
-                                'password' => $u['password'] ?? '',
-                                'plain' => $u['plain'] ?? $u['password'] ?? '',
                                 'role' => strtolower($u['role'] ?? 'user') === 'superadmin' ? 'superadmin' : 'user',
                                 'status' => strtolower($u['status'] ?? 'aktif') === 'pending' ? 'pending' : 'aktif',
                                 'nama' => $u['nama'] ?? $u['username'],
@@ -189,40 +235,11 @@ class GasBridgeController extends Controller
             }
         }
 
-        // 2. Coba ambil dari Google Spreadsheet ID (tab sheet "Users") via CSV
-        if (empty($googleUsers) && !empty($sheetId)) {
-            try {
-                $url = "https://docs.google.com/spreadsheets/d/{$sheetId}/gviz/tq?tqx=out:csv&sheet=" . urlencode('Users');
-                $res = \Illuminate\Support\Facades\Http::timeout(10)->get($url);
-
-                if ($res->successful()) {
-                    $lines = explode("\n", trim($res->body()));
-                    // Lewati baris header (index 0)
-                    for ($i = 1; $i < count($lines); $i++) {
-                        $row = str_getcsv($lines[$i]);
-                        $uName = trim($row[0] ?? '');
-                        if ($uName !== '') {
-                            $googleUsers[] = [
-                                'username' => $uName,
-                                'password' => trim($row[1] ?? ''),
-                                'plain' => trim($row[1] ?? ''),
-                                'role' => strtolower(trim($row[2] ?? 'user')) === 'superadmin' ? 'superadmin' : 'user',
-                                'status' => strtolower(trim($row[3] ?? 'aktif')) === 'pending' ? 'pending' : 'aktif',
-                                'nama' => trim($row[4] ?? '') ?: $uName,
-                            ];
-                        }
-                    }
-                }
-            } catch (\Throwable $e) {
-                Log::info('Fetch users from Google Sheet CSV: ' . $e->getMessage());
-            }
-        }
-
         return $googleUsers;
     }
 
     /**
-     * Ambil daftar user dari JSON store (dengan sinkronisasi otomatis ke Google Spreadsheet)
+     * Ambil daftar user dari penyimpanan lokal
      */
     protected function loadUsers(bool $forceGoogleSync = false): array
     {
@@ -233,7 +250,6 @@ class GasBridgeController extends Controller
             $cachedUsers = json_decode(File::get($file), true) ?: [];
         }
 
-        // Jika dipaksa sync atau cache lokal masih kosong, ambil dari Google Sheet
         if ($forceGoogleSync || empty($cachedUsers)) {
             $googleUsers = $this->fetchUsersFromGoogle();
             if (!empty($googleUsers)) {
@@ -243,7 +259,15 @@ class GasBridgeController extends Controller
                 }
                 foreach ($googleUsers as $gu) {
                     $key = strtolower($gu['username']);
-                    $userMap[$key] = array_merge($userMap[$key] ?? [], $gu);
+                    $existing = $userMap[$key] ?? [];
+                    // Pertahankan password hash yang sudah tersimpan
+                    $userMap[$key] = array_merge($existing, [
+                        'username' => $gu['username'],
+                        'role' => $gu['role'],
+                        'status' => $gu['status'],
+                        'nama' => $gu['nama'],
+                        'password' => $existing['password'] ?? '',
+                    ]);
                 }
                 $merged = array_values($userMap);
                 $this->saveUsers($merged);
@@ -255,12 +279,11 @@ class GasBridgeController extends Controller
             return $cachedUsers;
         }
 
-        // Akun bawaan sistem MATA
+        // Akun bawaan sistem MATA (Hanya menyimpan Hash, TANPA plaintext)
         $defaultUsers = [
             [
                 'username' => 'superadmin',
                 'password' => $this->hashPassword('password123'),
-                'plain' => 'password123',
                 'role' => 'superadmin',
                 'status' => 'aktif',
                 'nama' => 'Superadmin',
@@ -268,7 +291,6 @@ class GasBridgeController extends Controller
             [
                 'username' => 'badtiket',
                 'password' => $this->hashPassword('badtiket@2026'),
-                'plain' => 'badtiket@2026',
                 'role' => 'user',
                 'status' => 'aktif',
                 'nama' => 'Viewer',
@@ -280,28 +302,33 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Simpan daftar user ke file JSON
+     * Simpan daftar user ke file JSON secara aman tanpa plaintext
      */
     protected function saveUsers(array $users): void
     {
         try {
+            $cleanUsers = array_map(function ($u) {
+                unset($u['plain']); // Pastikan atribut plaintext dihapus total
+                return $u;
+            }, $users);
+
             $file = $this->getUsersFilePath();
-            File::put($file, json_encode($users, JSON_PRETTY_PRINT));
+            File::put($file, json_encode($cleanUsers, JSON_PRETTY_PRINT));
         } catch (\Throwable $e) {
             Log::warning('Gagal menyimpan file users: ' . $e->getMessage());
         }
     }
 
     /**
-     * Validasi kredensial login (mendukung password ter-hash maupun plain, auto-sync Google Sheet)
+     * Validasi kredensial login dengan Anti-Brute-Force Rate Limiting dan Server-Side Session
      */
-    protected function validateLogin(string $username, string $password): array
+    protected function validateLogin(Request $request, string $username, string $password): array
     {
         $u = strtolower(trim($username));
         $p = trim($password);
 
         if ($u === '' || $p === '') {
-            return ['success' => false];
+            return ['success' => false, 'error' => 'Username dan Password wajib diisi.'];
         }
 
         // Toleransi typo umum: "superaadmin" -> "superadmin"
@@ -309,9 +336,62 @@ class GasBridgeController extends Controller
             $u = 'superadmin';
         }
 
-        $users = $this->loadUsers();
+        // 1. Anti-Brute-Force Rate Limiting (Maksimal 5 percobaan gagal per 5 menit per IP/Username)
+        $throttleKey = 'mata_login:' . $request->ip() . ':' . $u;
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $seconds = RateLimiter::availableIn($throttleKey);
+            return [
+                'success' => false,
+                'rate_limited' => true,
+                'error' => "Terlalu banyak percobaan login gagal. Mohon tunggu {$seconds} detik sebelum mencoba kembali.",
+            ];
+        }
+
+        $webAppUrl = config('services.google_sheets.webapp_url');
         $found = null;
 
+        // 2. Prioritas verifikasi langsung ke Google Apps Script Web App
+        if (!empty($webAppUrl)) {
+            try {
+                $res = Http::timeout(10)
+                    ->withOptions(['allow_redirects' => true])
+                    ->get($webAppUrl, [
+                        'action' => 'validateLogin',
+                        'username' => $u,
+                        'password' => $p,
+                    ]);
+
+                if ($res->successful()) {
+                    $remoteJson = $res->json();
+                    if ($remoteJson && ($remoteJson['success'] ?? false)) {
+                        RateLimiter::clear($throttleKey);
+
+                        $sessionData = [
+                            'username' => $remoteJson['username'] ?? $u,
+                            'role' => strtolower($remoteJson['role'] ?? 'user') === 'superadmin' ? 'superadmin' : 'user',
+                            'nama' => $remoteJson['nama'] ?? ($remoteJson['username'] ?? $u),
+                            'login_at' => now()->toIso8601String(),
+                        ];
+                        session(['mata_user' => $sessionData]);
+                        session()->save();
+
+                        return [
+                            'success' => true,
+                            'username' => $sessionData['username'],
+                            'role' => $sessionData['role'],
+                            'nama' => $sessionData['nama'],
+                        ];
+                    } elseif ($remoteJson && ($remoteJson['pending'] ?? false)) {
+                        return ['success' => false, 'pending' => true];
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::info('Remote validateLogin failed, testing local store: ' . $e->getMessage());
+            }
+        }
+
+        // 3. Fallback: Verifikasi terhadap Local Store
+        $users = $this->loadUsers();
         foreach ($users as $usr) {
             if (strtolower(trim($usr['username'])) === $u) {
                 $found = $usr;
@@ -319,18 +399,8 @@ class GasBridgeController extends Controller
             }
         }
 
-        // Jika user tidak ditemukan di cache lokal, sync langsung dari Google Sheet!
         if (!$found) {
-            $freshUsers = $this->loadUsers(forceGoogleSync: true);
-            foreach ($freshUsers as $usr) {
-                if (strtolower(trim($usr['username'])) === $u) {
-                    $found = $usr;
-                    break;
-                }
-            }
-        }
-
-        if (!$found) {
+            RateLimiter::hit($throttleKey, 300);
             return ['success' => false];
         }
 
@@ -340,28 +410,37 @@ class GasBridgeController extends Controller
 
         $hashedInput = $this->hashPassword($p);
         $storedHash = $found['password'] ?? '';
-        $storedPlain = $found['plain'] ?? '';
 
-        $isValid = ($storedHash !== '' && hash_equals($storedHash, $hashedInput))
-            || ($storedPlain !== '' && $storedPlain === $p)
-            || ($storedHash !== '' && $storedHash === $p);
+        $isValid = ($storedHash !== '' && hash_equals($storedHash, $hashedInput));
 
         if (!$isValid) {
+            RateLimiter::hit($throttleKey, 300);
             return ['success' => false];
         }
 
-        return [
-            'success' => true,
+        RateLimiter::clear($throttleKey);
+
+        $sessionData = [
             'username' => $found['username'],
             'role' => strtolower($found['role'] ?? 'user') === 'superadmin' ? 'superadmin' : 'user',
             'nama' => $found['nama'] ?? $found['username'],
+            'login_at' => now()->toIso8601String(),
+        ];
+        session(['mata_user' => $sessionData]);
+        session()->save();
+
+        return [
+            'success' => true,
+            'username' => $sessionData['username'],
+            'role' => $sessionData['role'],
+            'nama' => $sessionData['nama'],
         ];
     }
 
     /**
-     * Ambil semua user untuk panel Superadmin (otomatis sync dari Google Sheet)
+     * Ambil semua user untuk panel Superadmin (Hanya mengembalikan data aman tanpa password)
      */
-    protected function getUsers(string $requesterUsername): array
+    protected function getUsers(): array
     {
         $users = $this->loadUsers(forceGoogleSync: true);
         $safeUsers = array_map(function ($u) {
@@ -379,7 +458,7 @@ class GasBridgeController extends Controller
     /**
      * Tambah akun baru oleh Superadmin
      */
-    protected function addUser(string $cUser, string $username, string $password, string $role, string $nama): array
+    protected function addUser(string $username, string $password, string $role, string $nama): array
     {
         $users = $this->loadUsers();
         $uName = trim($username);
@@ -393,7 +472,6 @@ class GasBridgeController extends Controller
         $users[] = [
             'username' => $uName,
             'password' => $this->hashPassword($password),
-            'plain' => $password,
             'role' => strtolower($role) === 'superadmin' ? 'superadmin' : 'user',
             'status' => 'aktif',
             'nama' => trim($nama) ?: $uName,
@@ -406,7 +484,7 @@ class GasBridgeController extends Controller
     /**
      * Update akun oleh Superadmin
      */
-    protected function updateUser(string $cUser, string $username, string $password, string $role, string $nama): array
+    protected function updateUser(string $username, string $password, string $role, string $nama): array
     {
         $users = $this->loadUsers();
         $found = false;
@@ -415,7 +493,6 @@ class GasBridgeController extends Controller
             if (strtolower($u['username']) === strtolower(trim($username))) {
                 if (!empty($password)) {
                     $u['password'] = $this->hashPassword($password);
-                    $u['plain'] = $password;
                 }
                 $u['role'] = strtolower($role) === 'superadmin' ? 'superadmin' : 'user';
                 if (!empty($nama)) {
@@ -437,7 +514,7 @@ class GasBridgeController extends Controller
     /**
      * Hapus akun
      */
-    protected function deleteUser(string $cUser, string $username): array
+    protected function deleteUser(string $username): array
     {
         if (strtolower(trim($username)) === 'superadmin') {
             return ['success' => false, 'error' => 'Akun superadmin utama tidak dapat dihapus.'];
@@ -451,12 +528,16 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Request Akses baru dari halaman Login
+     * Request Akses baru dari halaman Login (Tersimpan sebagai pending)
      */
     protected function requestAccess(string $csdm, string $nama, string $password): array
     {
         $users = $this->loadUsers();
         $uName = trim($csdm);
+
+        if ($uName === '' || $password === '') {
+            return ['success' => false, 'error' => 'CSDM dan Password wajib diisi.'];
+        }
 
         foreach ($users as $u) {
             if (strtolower($u['username']) === strtolower($uName)) {
@@ -467,7 +548,6 @@ class GasBridgeController extends Controller
         $users[] = [
             'username' => $uName,
             'password' => $this->hashPassword($password),
-            'plain' => $password,
             'role' => 'user',
             'status' => 'pending',
             'nama' => trim($nama) ?: $uName,
@@ -501,7 +581,7 @@ class GasBridgeController extends Controller
     /**
      * Setujui permohonan akses
      */
-    protected function approveRequest(string $cUser, string $id): array
+    protected function approveRequest(string $id): array
     {
         $users = $this->loadUsers();
         $found = false;
@@ -525,9 +605,9 @@ class GasBridgeController extends Controller
     /**
      * Tolak permohonan akses
      */
-    protected function rejectRequest(string $cUser, string $id): array
+    protected function rejectRequest(string $id): array
     {
-        return $this->deleteUser($cUser, $id);
+        return $this->deleteUser($id);
     }
 
     /**
@@ -548,7 +628,6 @@ class GasBridgeController extends Controller
             'activity' => $activity,
         ];
 
-        // Simpan maksimal 300 aktivitas terakhir
         if (count($logs) > 300) {
             $logs = array_slice($logs, -300);
         }
@@ -563,7 +642,7 @@ class GasBridgeController extends Controller
     /**
      * Ambil riwayat log aktivitas
      */
-    protected function getActivityLogs(string $requesterUsername): array
+    protected function getActivityLogs(): array
     {
         $file = storage_path('app/mata_activity.json');
         $logs = [];
@@ -575,17 +654,9 @@ class GasBridgeController extends Controller
     }
 
     /**
-     * Export log aktivitas
-     */
-    protected function exportActivityLogs(string $requesterUsername): array
-    {
-        return $this->getActivityLogs($requesterUsername);
-    }
-
-    /**
      * Ambil pengaturan visibilitas kolom
      */
-    protected function getColumnVisibilitySettings(string $username): array
+    protected function getColumnVisibilitySettings(): array
     {
         $file = storage_path('app/mata_settings.json');
         $settings = ['hideDetilForUser' => false, 'hideNotesForUser' => false];
@@ -601,7 +672,7 @@ class GasBridgeController extends Controller
     /**
      * Simpan pengaturan visibilitas kolom
      */
-    protected function setColumnVisibilitySettings(string $username, bool $hideDetil, bool $hideNotes): array
+    protected function setColumnVisibilitySettings(bool $hideDetil, bool $hideNotes): array
     {
         $file = storage_path('app/mata_settings.json');
         $settings = [
@@ -615,4 +686,3 @@ class GasBridgeController extends Controller
         return ['success' => true];
     }
 }
-

@@ -10,9 +10,16 @@ function doGet(e) {
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    // Ambil seluruh akun terdaftar dari sheet "Users" untuk sinkronisasi login ke Laravel
+    // Ambil seluruh akun terdaftar dari sheet "Users" untuk sinkronisasi (Kredensial Password TIDAK pernah dikirim ke publik)
     if (action === 'getUsers' || action === 'getAllUsers') {
-      const users = getUsersRaw_();
+      const users = getUsersRaw_().map(function(u) {
+        return {
+          username: u.username,
+          role: u.role,
+          status: u.status,
+          nama: u.nama
+        };
+      });
       return ContentService.createTextOutput(JSON.stringify({ success: true, users: users }))
         .setMimeType(ContentService.MimeType.JSON);
     }
