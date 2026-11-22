@@ -845,9 +845,10 @@ function generateTelegramMtdReport() {
     prevMonth = monthsInDataset.length > 1 ? monthsInDataset[monthsInDataset.length - 2] : '';
   }
   
-  // Cari cut-off tanggal tertinggi pada currMonth
+  // Cari cut-off tanggal tertinggi pada currMonth (utamakan dataset Fixed)
+  const targetMtdPool = fixedRecs.length > 0 ? fixedRecs : allRecords;
   let maxDay = 0;
-  allRecords.forEach(function(r) {
+  targetMtdPool.forEach(function(r) {
     if (String(r[1] || '').trim().toUpperCase() === currMonth) {
       const d = parseInt(r[0], 10);
       if (!isNaN(d) && d > maxDay) maxDay = d;
@@ -872,8 +873,8 @@ function generateTelegramMtdReport() {
     return bln === prevMonth && !isNaN(d) && d <= maxDay && isNotSanggahan(r);
   };
   
-  const currMtdRecords = allRecords.filter(isCurrMtd);
-  const prevMtdRecords = allRecords.filter(isPrevMtd);
+  const currMtdRecords = targetMtdPool.filter(isCurrMtd);
+  const prevMtdRecords = targetMtdPool.filter(isPrevMtd);
   
   const currCount = currMtdRecords.length;
   const prevCount = prevMtdRecords.length;
@@ -881,12 +882,20 @@ function generateTelegramMtdReport() {
   const diffCount = currCount - prevCount;
   let pctDiff = 0;
   if (prevCount > 0) {
-    pctDiff = ((diffCount / prevCount) * 100).toFixed(1);
+    pctDiff = Math.round(((diffCount / prevCount) * 100));
   }
   
   const trendIcon = diffCount < 0 ? '🟢' : (diffCount > 0 ? '🔴' : '🟡');
   const trendStatus = diffCount < 0 ? 'TURUN' : (diffCount > 0 ? 'NAIK' : 'STABIL');
   const signStr = diffCount > 0 ? '+' : '';
+
+  const formatMonthShort = function(m) {
+    if (!m) return '';
+    const s = m.trim();
+    return s.charAt(0).toUpperCase() + s.substring(1, 3).toLowerCase();
+  };
+  const cShort = formatMonthShort(currMonth);
+  const pShort = formatMonthShort(prevMonth);
   
   // Top Categories Comparison
   const catCurr = {};
@@ -902,7 +911,7 @@ function generateTelegramMtdReport() {
   
   const sortedCats = Object.keys(catCurr).sort(function(a, b) {
     return catCurr[b] - catCurr[a];
-  }).slice(0, 4);
+  }).slice(0, 5);
   
   // Unit Comparison
   const unitCurr = {};
@@ -918,7 +927,7 @@ function generateTelegramMtdReport() {
   
   const sortedUnits = Object.keys(unitCurr).sort(function(a, b) {
     return unitCurr[b] - unitCurr[a];
-  }).slice(0, 4);
+  }).slice(0, 5);
   
   // Format Pesan Telegram
   let msg = `🔔 <b>LAPORAN HARIAN & PERIOD COMPARISON MATA</b>\n`;
@@ -932,8 +941,8 @@ function generateTelegramMtdReport() {
     msg += `• Fixed  : <b>${todayFixed.length}</b> tiket\n`;
     msg += `• Mobile : <b>${todayMobile.length}</b> tiket\n\n`;
   } else {
-    msg += `⚠️ <i>Belum ada inputan tiket baru untuk hari ini.</i>\n`;
-    msg += `<i>(Cut-off data transaksi terakhir per tanggal ${maxDay} ${currMonth} 2026)</i>\n\n`;
+    msg += `⚠️ <i>Belum ada inputan baru untuk hari ini.</i>\n`;
+    msg += `<i>(Cut-off data inputan terakhir per tanggal ${maxDay} ${currMonth} 2026)</i>\n\n`;
   }
   
   msg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -950,8 +959,15 @@ function generateTelegramMtdReport() {
       const cVal = catCurr[cat] || 0;
       const pVal = catPrev[cat] || 0;
       const diff = cVal - pVal;
-      const cSign = diff > 0 ? '+' : '';
-      msg += `${idx + 1}. <b>${cat}</b>\n   • ${currMonth}: <b>${cVal}</b> vs ${prevMonth}: <b>${pVal}</b> [${cSign}${diff}]\n`;
+      let pct = 0;
+      if (pVal > 0) {
+        pct = Math.round(((diff) / pVal) * 100);
+      } else if (cVal > 0) {
+        pct = 100;
+      }
+      const icon = diff < 0 ? '🟢 Turun' : (diff > 0 ? '🔴 Naik' : '➖ Stabil');
+      const sign = diff > 0 ? '+' : '';
+      msg += `${idx + 1}. <b>${cat}</b>\n   • ${cShort}: <b>${cVal}</b> vs ${pShort}: <b>${pVal}</b> [${icon} ${sign}${pct}% (${sign}${diff})]\n`;
     });
     msg += `\n`;
   }
@@ -961,7 +977,16 @@ function generateTelegramMtdReport() {
     sortedUnits.forEach(function(u) {
       const cVal = unitCurr[u] || 0;
       const pVal = unitPrev[u] || 0;
-      msg += `• <b>${u}</b>: ${currMonth} (${cVal}) vs ${prevMonth} (${pVal})\n`;
+      const diff = cVal - pVal;
+      let pct = 0;
+      if (pVal > 0) {
+        pct = Math.round(((diff) / pVal) * 100);
+      } else if (cVal > 0) {
+        pct = 100;
+      }
+      const icon = diff < 0 ? '🟢 Turun' : (diff > 0 ? '🔴 Naik' : '➖ Stabil');
+      const sign = diff > 0 ? '+' : '';
+      msg += `• <b>${u}</b>: ${cShort} <b>${cVal}</b> vs ${pShort} <b>${pVal}</b> [${icon} ${sign}${pct}% (${sign}${diff})]\n`;
     });
   }
   

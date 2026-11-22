@@ -857,12 +857,13 @@ class GasBridgeController extends Controller
         }
         $totalToday = $todayFixed + $todayMobile;
 
-        // 2. Cut-off MTD (rentang tanggal tertinggi di bulan berjalan)
+        // 2. Cut-off MTD (rentang tanggal tertinggi di bulan berjalan pada dataset Fixed)
         $currMonth = $todayMonth;
         $prevMonth = $todayMonthNum > 1 ? $monthNames[$todayMonthNum - 1] : 'DESEMBER';
+        $targetMtdPool = !empty($fixed) ? $fixed : $all;
 
         $maxDay = 0;
-        foreach ($all as $r) {
+        foreach ($targetMtdPool as $r) {
             if (strtoupper(trim($r[1] ?? '')) === $currMonth) {
                 $d = (int) ($r[0] ?? 0);
                 if ($d > $maxDay) $maxDay = $d;
@@ -870,12 +871,12 @@ class GasBridgeController extends Controller
         }
         if ($maxDay === 0) $maxDay = $todayDay;
 
-        // Hitung MTD
+        // Hitung MTD (Exclude Sanggahan Diterima = Net Bad Ticket)
         $isNotSgh = fn($r) => !str_contains(strtoupper($r[14] ?? ''), 'SANGGAHAN DITERIMA');
 
         $currMtd = [];
         $prevMtd = [];
-        foreach ($all as $r) {
+        foreach ($targetMtdPool as $r) {
             $d = (int) ($r[0] ?? 0);
             $m = strtoupper(trim($r[1] ?? ''));
             if ($d >= 1 && $d <= $maxDay && $isNotSgh($r)) {
@@ -892,6 +893,9 @@ class GasBridgeController extends Controller
         $trendStatus = $diff < 0 ? 'TURUN' : ($diff > 0 ? 'NAIK' : 'STABIL');
         $sign = $diff > 0 ? '+' : '';
 
+        $cShort = ucfirst(strtolower(substr($currMonth, 0, 3)));
+        $pShort = ucfirst(strtolower(substr($prevMonth, 0, 3)));
+
         // Kategori breakdown
         $catsCurr = [];
         $catsPrev = [];
@@ -904,15 +908,18 @@ class GasBridgeController extends Controller
             $catsPrev[$c] = ($catsPrev[$c] ?? 0) + 1;
         }
         arsort($catsCurr);
-        $topCats = array_slice($catsCurr, 0, 4, true);
+        $topCats = array_slice($catsCurr, 0, 5, true);
 
         $catText = '';
         $i = 1;
         foreach ($topCats as $cName => $cVal) {
             $pVal = $catsPrev[$cName] ?? 0;
             $dVal = $cVal - $pVal;
+            $cPct = $pVal > 0 ? round(($dVal / $pVal) * 100) : ($cVal > 0 ? 100 : 0);
             $sVal = $dVal > 0 ? "+$dVal" : "$dVal";
-            $catText .= "{$i}. <b>{$cName}</b>\n   • {$currMonth}: <b>{$cVal}</b> vs {$prevMonth}: <b>{$pVal}</b> [{$sVal}]\n";
+            $sPct = $dVal > 0 ? "+$cPct" : "$cPct";
+            $cIcon = $dVal < 0 ? '🟢 Turun' : ($dVal > 0 ? '🔴 Naik' : '➖ Stabil');
+            $catText .= "{$i}. <b>{$cName}</b>\n   • {$cShort}: <b>{$cVal}</b> vs {$pShort}: <b>{$pVal}</b> [{$cIcon} {$sPct}% ({$sVal})]\n";
             $i++;
         }
 
@@ -928,12 +935,17 @@ class GasBridgeController extends Controller
             if ($u) $unitsPrev[$u] = ($unitsPrev[$u] ?? 0) + 1;
         }
         arsort($unitsCurr);
-        $topUnits = array_slice($unitsCurr, 0, 4, true);
+        $topUnits = array_slice($unitsCurr, 0, 5, true);
 
         $unitText = '';
         foreach ($topUnits as $uName => $cVal) {
             $pVal = $unitsPrev[$uName] ?? 0;
-            $unitText .= "• <b>{$uName}</b>: {$currMonth} ({$cVal}) vs {$prevMonth} ({$pVal})\n";
+            $dVal = $cVal - $pVal;
+            $uPct = $pVal > 0 ? round(($dVal / $pVal) * 100) : ($cVal > 0 ? 100 : 0);
+            $sVal = $dVal > 0 ? "+$dVal" : "$dVal";
+            $sPct = $dVal > 0 ? "+$uPct" : "$uPct";
+            $uIcon = $dVal < 0 ? '🟢 Turun' : ($dVal > 0 ? '🔴 Naik' : '➖ Stabil');
+            $unitText .= "• <b>{$uName}</b>: {$cShort} <b>{$cVal}</b> vs {$pShort} <b>{$pVal}</b> [{$uIcon} {$sPct}% ({$sVal})]\n";
         }
 
         $dateStr = $now->translatedFormat('l, d F Y') . ' | ' . $now->format('H:i') . ' WIB';
@@ -949,8 +961,8 @@ class GasBridgeController extends Controller
             $msg .= "• Fixed  : <b>{$todayFixed}</b> tiket\n";
             $msg .= "• Mobile : <b>{$todayMobile}</b> tiket\n\n";
         } else {
-            $msg .= "⚠️ <i>Belum ada inputan tiket baru untuk hari ini.</i>\n";
-            $msg .= "<i>(Cut-off data transaksi terakhir per tanggal {$maxDay} {$currMonth} 2026)</i>\n\n";
+            $msg .= "⚠️ <i>Belum ada inputan baru untuk hari ini.</i>\n";
+            $msg .= "<i>(Cut-off data inputan terakhir per tanggal {$maxDay} {$currMonth} 2026)</i>\n\n";
         }
 
         $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━\n";
