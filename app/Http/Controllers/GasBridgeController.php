@@ -145,6 +145,17 @@ class GasBridgeController extends Controller
                     $hNotes = filter_var($params['hideNotes'] ?? ($params['args_array'][2] ?? false), FILTER_VALIDATE_BOOLEAN);
                     return response()->json($this->setColumnVisibilitySettings($hDetil, $hNotes));
 
+                // ==================== NOTIFIKASI TELEGRAM ====================
+                case 'sendTelegramReport':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
+                    if ($denied = $this->requireSuperadmin()) return $denied;
+                    return response()->json($this->sendTelegramMtdReport());
+
+                case 'testTelegram':
+                    if ($methodDenied = $this->requirePostMethod($request)) return $methodDenied;
+                    if ($denied = $this->requireSuperadmin()) return $denied;
+                    return response()->json($this->testTelegram());
+
                 case 'getDashboardData':
                     if ($denied = $this->requireAuth()) return $denied;
                     return response()->json($this->sheetService->getDashboardData());
@@ -765,5 +776,201 @@ class GasBridgeController extends Controller
         $this->saveEncryptedJson($file, $settings);
 
         return ['success' => true];
+    }
+
+    /**
+     * Kirim pesan ke Telegram Bot
+     */
+    protected function sendTelegramRaw(string $text): array
+    {
+        $botToken = config('services.telegram.bot_token', env('TELEGRAM_BOT_TOKEN'));
+        $chatId = config('services.telegram.chat_id', env('TELEGRAM_CHAT_ID'));
+
+        if (empty($botToken) || empty($chatId)) {
+            return ['success' => false, 'error' => 'Bot Token atau Chat ID Telegram belum dikonfigurasi.'];
+        }
+
+        try {
+            $url = "https://api.telegram.org/bot{$botToken}/sendMessage";
+            $res = Http::timeout(15)->post($url, [
+                'chat_id' => $chatId,
+                'text' => $text,
+                'parse_mode' => 'HTML',
+                'disable_web_page_preview' => true,
+            ]);
+
+            if ($res->successful()) {
+                return ['success' => true, 'result' => $res->json()];
+            }
+
+            return ['success' => false, 'error' => $res->body()];
+        } catch (\Throwable $e) {
+            Log::error('Telegram send error: ' . $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * Test koneksi Telegram
+     */
+    protected function testTelegram(): array
+    {
+        $msg = "🚀 <b>Uji Coba Koneksi Telegram Sukses!</b>\n\nSistem Dashboard MATA berhasil terhubung dengan akun Telegram Anda melalui @agentmata_bot.";
+        return $this->sendTelegramRaw($msg);
+    }
+
+    /**
+     * Bangun dan kirim laporan Period Comparison MTD & inputan hari ini ke Telegram
+     */
+    protected function sendTelegramMtdReport(): array
+    {
+        $data = $this->sheetService->getDashboardData();
+        $fixed = $data['fixed']['rawRecords'] ?? [];
+        $mobile = $data['mobile']['rawRecords'] ?? [];
+        $all = array_merge($fixed, $mobile);
+
+        $now = now()->timezone('Asia/Jakarta');
+        $todayDay = (int) $now->format('j');
+        $todayMonthNum = (int) $now->format('n');
+        $monthNames = [1 => 'JANUARI', 2 => 'FEBRUARI', 3 => 'MARET', 4 => 'APRIL', 5 => 'MEI', 6 => 'JUNI', 7 => 'JULI', 8 => 'AGUSTUS', 9 => 'SEPTEMBER', 10 => 'OKTOBER', 11 => 'NOVEMBER', 12 => 'DESEMBER'];
+        $todayMonth = $monthNames[$todayMonthNum] ?? 'NOVEMBER';
+        $todayYear = $now->format('Y');
+
+        // 1. Cek inputan hari ini
+        $todayFixed = 0;
+        $todayMobile = 0;
+        foreach ($fixed as $r) {
+            $d = (int) ($r[0] ?? 0);
+            $m = strtoupper(trim($r[1] ?? ''));
+            $y = trim($r[2] ?? '');
+            if ($d === $todayDay && $m === $todayMonth && $y === $todayYear) {
+                $todayFixed++;
+            }
+        }
+        foreach ($mobile as $r) {
+            $d = (int) ($r[0] ?? 0);
+            $m = strtoupper(trim($r[1] ?? ''));
+            $y = trim($r[2] ?? '');
+            if ($d === $todayDay && $m === $todayMonth && $y === $todayYear) {
+                $todayMobile++;
+            }
+        }
+        $totalToday = $todayFixed + $todayMobile;
+
+        // 2. Cut-off MTD (rentang tanggal tertinggi di bulan berjalan)
+        $currMonth = $todayMonth;
+        $prevMonth = $todayMonthNum > 1 ? $monthNames[$todayMonthNum - 1] : 'DESEMBER';
+
+        $maxDay = 0;
+        foreach ($all as $r) {
+            if (strtoupper(trim($r[1] ?? '')) === $currMonth) {
+                $d = (int) ($r[0] ?? 0);
+                if ($d > $maxDay) $maxDay = $d;
+            }
+        }
+        if ($maxDay === 0) $maxDay = $todayDay;
+
+        // Hitung MTD
+        $isNotSgh = fn($r) => !str_contains(strtoupper($r[14] ?? ''), 'SANGGAHAN DITERIMA');
+
+        $currMtd = [];
+        $prevMtd = [];
+        foreach ($all as $r) {
+            $d = (int) ($r[0] ?? 0);
+            $m = strtoupper(trim($r[1] ?? ''));
+            if ($d >= 1 && $d <= $maxDay && $isNotSgh($r)) {
+                if ($m === $currMonth) $currMtd[] = $r;
+                elseif ($m === $prevMonth) $prevMtd[] = $r;
+            }
+        }
+
+        $currCount = count($currMtd);
+        $prevCount = count($prevMtd);
+        $diff = $currCount - $prevCount;
+        $pct = $prevCount > 0 ? round(($diff / $prevCount) * 100, 1) : 0;
+        $trendIcon = $diff < 0 ? '🟢' : ($diff > 0 ? '🔴' : '🟡');
+        $trendStatus = $diff < 0 ? 'TURUN' : ($diff > 0 ? 'NAIK' : 'STABIL');
+        $sign = $diff > 0 ? '+' : '';
+
+        // Kategori breakdown
+        $catsCurr = [];
+        $catsPrev = [];
+        foreach ($currMtd as $r) {
+            $c = trim($r[11] ?? 'LAINNYA');
+            $catsCurr[$c] = ($catsCurr[$c] ?? 0) + 1;
+        }
+        foreach ($prevMtd as $r) {
+            $c = trim($r[11] ?? 'LAINNYA');
+            $catsPrev[$c] = ($catsPrev[$c] ?? 0) + 1;
+        }
+        arsort($catsCurr);
+        $topCats = array_slice($catsCurr, 0, 4, true);
+
+        $catText = '';
+        $i = 1;
+        foreach ($topCats as $cName => $cVal) {
+            $pVal = $catsPrev[$cName] ?? 0;
+            $dVal = $cVal - $pVal;
+            $sVal = $dVal > 0 ? "+$dVal" : "$dVal";
+            $catText .= "{$i}. <b>{$cName}</b>\n   • {$currMonth}: <b>{$cVal}</b> vs {$prevMonth}: <b>{$pVal}</b> [{$sVal}]\n";
+            $i++;
+        }
+
+        // Unit breakdown
+        $unitsCurr = [];
+        $unitsPrev = [];
+        foreach ($currMtd as $r) {
+            $u = trim($r[9] ?? '');
+            if ($u) $unitsCurr[$u] = ($unitsCurr[$u] ?? 0) + 1;
+        }
+        foreach ($prevMtd as $r) {
+            $u = trim($r[9] ?? '');
+            if ($u) $unitsPrev[$u] = ($unitsPrev[$u] ?? 0) + 1;
+        }
+        arsort($unitsCurr);
+        $topUnits = array_slice($unitsCurr, 0, 4, true);
+
+        $unitText = '';
+        foreach ($topUnits as $uName => $cVal) {
+            $pVal = $unitsPrev[$uName] ?? 0;
+            $unitText .= "• <b>{$uName}</b>: {$currMonth} ({$cVal}) vs {$prevMonth} ({$pVal})\n";
+        }
+
+        $dateStr = $now->translatedFormat('l, d F Y') . ' | ' . $now->format('H:i') . ' WIB';
+
+        $msg = "🔔 <b>LAPORAN HARIAN & PERIOD COMPARISON MATA</b>\n";
+        $msg .= "📅 <b>Tanggal Cek:</b> {$dateStr}\n\n";
+
+        $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $msg .= "📍 <b>1. STATUS INPUTAN HARI INI ({$todayDay} {$todayMonth})</b>\n";
+        $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        if ($totalToday > 0) {
+            $msg .= "✅ <b>Ditemukan {$totalToday} Inputan Tiket Baru Hari Ini!</b>\n";
+            $msg .= "• Fixed  : <b>{$todayFixed}</b> tiket\n";
+            $msg .= "• Mobile : <b>{$todayMobile}</b> tiket\n\n";
+        } else {
+            $msg .= "⚠️ <i>Belum ada inputan tiket baru untuk hari ini.</i>\n";
+            $msg .= "<i>(Cut-off data transaksi terakhir per tanggal {$maxDay} {$currMonth} 2026)</i>\n\n";
+        }
+
+        $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $msg .= "📈 <b>2. PERIOD COMPARISON (MTD MoM)</b>\n";
+        $msg .= "<b>Rentang Cut-Off: 1–{$maxDay} {$currMonth} vs 1–{$maxDay} {$prevMonth} 2026</b>\n";
+        $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $msg .= "• MTD Bulan Ini ({$currMonth})  : <b>{$currCount} Tiket</b>\n";
+        $msg .= "• MTD Bulan Lalu ({$prevMonth}) : <b>{$prevCount} Tiket</b>\n";
+        $msg .= "• Tren Evaluasi        : {$trendIcon} <b>{$trendStatus} {$sign}{$pct}% ({$sign}{$diff} Tiket)</b>\n\n";
+
+        if ($catText) {
+            $msg .= "📌 <b>Perbandingan Top Kategori Bad Ticket:</b>\n{$catText}\n";
+        }
+        if ($unitText) {
+            $msg .= "🏢 <b>Perbandingan Per Unit:</b>\n{$unitText}\n";
+        }
+
+        $msg .= "━━━━━━━━━━━━━━━━━━━━━━━━\n";
+        $msg .= "🔗 <a href=\"https://dashboard-mata.vercel.app\">Buka Dashboard MATA</a>";
+
+        return $this->sendTelegramRaw($msg);
     }
 }

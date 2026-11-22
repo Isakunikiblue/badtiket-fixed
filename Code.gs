@@ -32,6 +32,20 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(result))
         .setMimeType(ContentService.MimeType.JSON);
     }
+
+    // Trigger pengiriman laporan Telegram Harian & MTD Period Comparison
+    if (action === 'sendTelegramReport') {
+      const result = generateTelegramMtdReport();
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Uji coba koneksi bot Telegram
+    if (action === 'testTelegram') {
+      const result = testTelegramConnection();
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
   }
 
   // 2. Tampilan Web App standar (tetap berjalan normal seperti biasa)
@@ -722,4 +736,261 @@ function getDashboardData() {
       error: error.toString() 
     };
   }
+}
+
+// ===================== INTEGRASI TELEGRAM: LAPORAN HARIAN & PERIOD COMPARISON (MTD) =====================
+const TELEGRAM_CONFIG = {
+  BOT_TOKEN: '8732702174:AAGmDyX4_AJb0XpWgGX1MluWbY0M608OPaI',
+  CHAT_ID: '101559377'
+};
+
+/**
+ * Mengirim pesan teks ke Telegram menggunakan Telegram Bot API
+ */
+function sendTelegramMessage(text, parseMode) {
+  const props = PropertiesService.getScriptProperties();
+  const token = props.getProperty('TELEGRAM_BOT_TOKEN') || TELEGRAM_CONFIG.BOT_TOKEN;
+  const chatId = props.getProperty('TELEGRAM_CHAT_ID') || TELEGRAM_CONFIG.CHAT_ID;
+  
+  if (!token || !chatId) {
+    return { success: false, error: 'Token atau Chat ID Telegram belum dikonfigurasi.' };
+  }
+  
+  const url = 'https://api.telegram.org/bot' + token + '/sendMessage';
+  const payload = {
+    chat_id: chatId,
+    text: text,
+    parse_mode: parseMode || 'HTML',
+    disable_web_page_preview: true
+  };
+  
+  const options = {
+    method: 'post',
+    contentType: 'application/json',
+    payload: JSON.stringify(payload),
+    muteHttpExceptions: true
+  };
+  
+  try {
+    const response = UrlFetchApp.fetch(url, options);
+    const result = JSON.parse(response.getContentText());
+    return { success: result.ok, result: result };
+  } catch (e) {
+    Logger.log('Error sendTelegramMessage: ' + e.toString());
+    return { success: false, error: e.toString() };
+  }
+}
+
+/**
+ * Uji coba koneksi bot Telegram
+ */
+function testTelegramConnection() {
+  const msg = '🚀 <b>Koneksi Bot Telegram Berhasil!</b>\n\nSistem Google Apps Script MATA terhubung sempurna dengan bot @agentmata_bot.';
+  return sendTelegramMessage(msg, 'HTML');
+}
+
+/**
+ * Menghasilkan dan mengirimkan laporan Telegram:
+ * 1. Pengecekan inputan tiket di hari ini
+ * 2. Period Comparison (MTD MoM): Rentang tanggal 1–X bulan ini vs 1–X bulan lalu
+ */
+function generateTelegramMtdReport() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tz = Session.getScriptTimeZone();
+  const sortAlphaNum = (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' });
+  
+  const sheetFixed = ss.getSheetByName('Data');
+  const sheetMobile = ss.getSheetByName('Data2');
+  
+  const fixedRecs = sheetFixed ? extractSheetRecords_(sheetFixed, tz, sortAlphaNum).rawRecords : [];
+  const mobileRecs = sheetMobile ? extractSheetRecords_(sheetMobile, tz, sortAlphaNum).rawRecords : [];
+  const allRecords = fixedRecs.concat(mobileRecs);
+  
+  const today = new Date();
+  const todayDay = today.getDate();
+  const monthNames = ['JANUARI', 'FEBRUARI', 'MARET', 'APRIL', 'MEI', 'JUNI', 'JULI', 'AGUSTUS', 'SEPTEMBER', 'OKTOBER', 'NOVEMBER', 'DESEMBER'];
+  const todayMonthName = monthNames[today.getMonth()];
+  const todayYear = String(today.getFullYear());
+  const todayFormatted = Utilities.formatDate(today, tz, 'EEEE, dd MMMM yyyy');
+  const timeFormatted = Utilities.formatDate(today, tz, 'HH:mm');
+  
+  // 1. Cek inputan hari ini (Kolom 0 = tanggal, Kolom 1 = bulan, Kolom 2 = tahun)
+  const isMatchToday = function(r) {
+    const tgl = String(r[0] || '').trim();
+    const bln = String(r[1] || '').trim().toUpperCase();
+    const thn = String(r[2] || '').trim();
+    return (tgl === String(todayDay) && bln === todayMonthName && thn === todayYear);
+  };
+  
+  const todayFixed = fixedRecs.filter(isMatchToday);
+  const todayMobile = mobileRecs.filter(isMatchToday);
+  const totalToday = todayFixed.length + todayMobile.length;
+  
+  // 2. Kalkulasi Period Comparison (MTD Comparison)
+  const monthsInDataset = [];
+  const monthSet = new Set();
+  allRecords.forEach(function(r) {
+    const b = String(r[1] || '').trim().toUpperCase();
+    if (b && !monthSet.has(b)) {
+      monthSet.add(b);
+      monthsInDataset.push(b);
+    }
+  });
+  
+  let currMonth = todayMonthName;
+  let prevMonth = today.getMonth() > 0 ? monthNames[today.getMonth() - 1] : 'DESEMBER';
+  
+  if (!monthSet.has(currMonth) && monthsInDataset.length > 0) {
+    currMonth = monthsInDataset[monthsInDataset.length - 1];
+    prevMonth = monthsInDataset.length > 1 ? monthsInDataset[monthsInDataset.length - 2] : '';
+  }
+  
+  // Cari cut-off tanggal tertinggi pada currMonth
+  let maxDay = 0;
+  allRecords.forEach(function(r) {
+    if (String(r[1] || '').trim().toUpperCase() === currMonth) {
+      const d = parseInt(r[0], 10);
+      if (!isNaN(d) && d > maxDay) maxDay = d;
+    }
+  });
+  if (maxDay === 0) maxDay = todayDay;
+  
+  // Filter MTD (Exclude Sanggahan Diterima = Net Bad Ticket)
+  const isNotSanggahan = function(r) {
+    return !String(r[14] || '').toUpperCase().includes('SANGGAHAN DITERIMA');
+  };
+  
+  const isCurrMtd = function(r) {
+    const bln = String(r[1] || '').trim().toUpperCase();
+    const d = parseInt(r[0], 10);
+    return bln === currMonth && !isNaN(d) && d <= maxDay && isNotSanggahan(r);
+  };
+  
+  const isPrevMtd = function(r) {
+    const bln = String(r[1] || '').trim().toUpperCase();
+    const d = parseInt(r[0], 10);
+    return bln === prevMonth && !isNaN(d) && d <= maxDay && isNotSanggahan(r);
+  };
+  
+  const currMtdRecords = allRecords.filter(isCurrMtd);
+  const prevMtdRecords = allRecords.filter(isPrevMtd);
+  
+  const currCount = currMtdRecords.length;
+  const prevCount = prevMtdRecords.length;
+  
+  const diffCount = currCount - prevCount;
+  let pctDiff = 0;
+  if (prevCount > 0) {
+    pctDiff = ((diffCount / prevCount) * 100).toFixed(1);
+  }
+  
+  const trendIcon = diffCount < 0 ? '🟢' : (diffCount > 0 ? '🔴' : '🟡');
+  const trendStatus = diffCount < 0 ? 'TURUN' : (diffCount > 0 ? 'NAIK' : 'STABIL');
+  const signStr = diffCount > 0 ? '+' : '';
+  
+  // Top Categories Comparison
+  const catCurr = {};
+  const catPrev = {};
+  currMtdRecords.forEach(function(r) {
+    const k = String(r[11] || 'LAINNYA').trim();
+    catCurr[k] = (catCurr[k] || 0) + 1;
+  });
+  prevMtdRecords.forEach(function(r) {
+    const k = String(r[11] || 'LAINNYA').trim();
+    catPrev[k] = (catPrev[k] || 0) + 1;
+  });
+  
+  const sortedCats = Object.keys(catCurr).sort(function(a, b) {
+    return catCurr[b] - catCurr[a];
+  }).slice(0, 4);
+  
+  // Unit Comparison
+  const unitCurr = {};
+  const unitPrev = {};
+  currMtdRecords.forEach(function(r) {
+    const u = String(r[9] || '').trim();
+    if (u) unitCurr[u] = (unitCurr[u] || 0) + 1;
+  });
+  prevMtdRecords.forEach(function(r) {
+    const u = String(r[9] || '').trim();
+    if (u) unitPrev[u] = (unitPrev[u] || 0) + 1;
+  });
+  
+  const sortedUnits = Object.keys(unitCurr).sort(function(a, b) {
+    return unitCurr[b] - unitCurr[a];
+  }).slice(0, 4);
+  
+  // Format Pesan Telegram
+  let msg = `🔔 <b>LAPORAN HARIAN & PERIOD COMPARISON MATA</b>\n`;
+  msg += `📅 <b>Tanggal Cek:</b> ${todayFormatted} | ${timeFormatted} WIB\n\n`;
+  
+  msg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `📍 <b>1. STATUS INPUTAN HARI INI (${todayDay} ${todayMonthName})</b>\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  if (totalToday > 0) {
+    msg += `✅ <b>Ditemukan ${totalToday} Inputan Tiket Baru Hari Ini!</b>\n`;
+    msg += `• Fixed  : <b>${todayFixed.length}</b> tiket\n`;
+    msg += `• Mobile : <b>${todayMobile.length}</b> tiket\n\n`;
+  } else {
+    msg += `⚠️ <i>Belum ada inputan tiket baru untuk hari ini.</i>\n`;
+    msg += `<i>(Cut-off data transaksi terakhir per tanggal ${maxDay} ${currMonth} 2026)</i>\n\n`;
+  }
+  
+  msg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `📈 <b>2. PERIOD COMPARISON (MTD MoM)</b>\n`;
+  msg += `<b>Rentang Cut-Off: 1–${maxDay} ${currMonth} vs 1–${maxDay} ${prevMonth} 2026</b>\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `• MTD Bulan Ini (${currMonth})  : <b>${currCount} Tiket</b>\n`;
+  msg += `• MTD Bulan Lalu (${prevMonth}) : <b>${prevCount} Tiket</b>\n`;
+  msg += `• Tren Evaluasi        : ${trendIcon} <b>${trendStatus} ${signStr}${pctDiff}% (${signStr}${diffCount} Tiket)</b>\n\n`;
+  
+  if (sortedCats.length > 0) {
+    msg += `📌 <b>Perbandingan Top Kategori Bad Ticket:</b>\n`;
+    sortedCats.forEach(function(cat, idx) {
+      const cVal = catCurr[cat] || 0;
+      const pVal = catPrev[cat] || 0;
+      const diff = cVal - pVal;
+      const cSign = diff > 0 ? '+' : '';
+      msg += `${idx + 1}. <b>${cat}</b>\n   • ${currMonth}: <b>${cVal}</b> vs ${prevMonth}: <b>${pVal}</b> [${cSign}${diff}]\n`;
+    });
+    msg += `\n`;
+  }
+  
+  if (sortedUnits.length > 0) {
+    msg += `🏢 <b>Perbandingan Per Unit:</b>\n`;
+    sortedUnits.forEach(function(u) {
+      const cVal = unitCurr[u] || 0;
+      const pVal = unitPrev[u] || 0;
+      msg += `• <b>${u}</b>: ${currMonth} (${cVal}) vs ${prevMonth} (${pVal})\n`;
+    });
+  }
+  
+  msg += `━━━━━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `🔗 <a href="https://dashboard-mata.vercel.app">Buka Dashboard MATA</a>`;
+  
+  return sendTelegramMessage(msg, 'HTML');
+}
+
+/**
+ * Pengaturan Pemicu Jadwal Otomatis (Daily Trigger jam 20:00 WIB)
+ * Jalankan fungsi ini sekali dari editor Google Apps Script jika ingin laporan dikirim otomatis setiap malam
+ */
+function setupDailyTelegramTrigger() {
+  // Hapus trigger lama jika sudah ada
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(function(t) {
+    if (t.getHandlerFunction() === 'generateTelegramMtdReport') {
+      ScriptApp.deleteTrigger(t);
+    }
+  });
+  
+  // Buat trigger harian pukul 20:00 - 21:00 WIB
+  ScriptApp.newTrigger('generateTelegramMtdReport')
+    .timeBased()
+    .atHour(20)
+    .everyDays(1)
+    .inTimezone('Asia/Jakarta')
+    .create();
+    
+  Logger.log('Trigger harian jam 20:00 WIB berhasil dibuat!');
 }

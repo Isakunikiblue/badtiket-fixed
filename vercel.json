@@ -48,6 +48,8 @@
     "VIEW_COMPILED_PATH": "/tmp",
     "CACHE_STORE": "array",
     "SESSION_DRIVER": "cookie",
-    "GOOGLE_SHEET_WEBAPP_URL": "https://script.google.com/macros/s/AKfycbzsATpz5NB3a6LXaeilqp0cBiIBigCwp5hPzvo88kJqLtEZN8fmp_bZW8Xy-G7KEJJ5/exec"
+    "GOOGLE_SHEET_WEBAPP_URL": "https://script.google.com/macros/s/AKfycbzsATpz5NB3a6LXaeilqp0cBiIBigCwp5hPzvo88kJqLtEZN8fmp_bZW8Xy-G7KEJJ5/exec",
+    "TELEGRAM_BOT_TOKEN": "8732702174:AAGmDyX4_AJb0XpWgGX1MluWbY0M608OPaI",
+    "TELEGRAM_CHAT_ID": "101559377"
   }
 }
