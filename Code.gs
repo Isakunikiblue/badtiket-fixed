@@ -972,8 +972,8 @@ function generateTelegramMtdReport() {
 }
 
 /**
- * Pengaturan Pemicu Jadwal Otomatis (Daily Trigger jam 20:00 WIB)
- * Jalankan fungsi ini sekali dari editor Google Apps Script jika ingin laporan dikirim otomatis setiap malam
+ * Pengaturan Pemicu Jadwal Otomatis (Daily Trigger jam 15:00 WIB)
+ * Jalankan fungsi ini sekali dari editor Google Apps Script jika ingin laporan dikirim otomatis setiap hari pukul 15.00 WIB
  */
 function setupDailyTelegramTrigger() {
   // Hapus trigger lama jika sudah ada
@@ -984,13 +984,13 @@ function setupDailyTelegramTrigger() {
     }
   });
   
-  // Buat trigger harian pukul 20:00 - 21:00 WIB
+  // Buat trigger harian pukul 15:00 - 16:00 WIB
   ScriptApp.newTrigger('generateTelegramMtdReport')
     .timeBased()
-    .atHour(20)
+    .atHour(15)
     .everyDays(1)
     .inTimezone('Asia/Jakarta')
     .create();
     
-  Logger.log('Trigger harian jam 20:00 WIB berhasil dibuat!');
+  Logger.log('Trigger harian jam 15:00 WIB berhasil dibuat!');
 }
