@@ -741,7 +741,7 @@ function getDashboardData() {
 // ===================== INTEGRASI TELEGRAM: LAPORAN HARIAN & PERIOD COMPARISON (MTD) =====================
 const TELEGRAM_CONFIG = {
   BOT_TOKEN: '8732702174:AAGmDyX4_AJb0XpWgGX1MluWbY0M608OPaI',
-  CHAT_ID: '101559377'
+  CHAT_ID: '-5555763422' // Grup Telegram: REPORT DASHBOARD MATA
 };
 
 /**
