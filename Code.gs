@@ -46,6 +46,24 @@ function doGet(e) {
       return ContentService.createTextOutput(JSON.stringify(result))
         .setMimeType(ContentService.MimeType.JSON);
     }
+
+    // Ambil log aktivitas pengguna dari sheet "ActivityLog" (Superadmin Only)
+    if (action === 'getActivityLogs') {
+      const requester = e.parameter.requester || e.parameter.requesterUsername || 'superadmin';
+      const result = getActivityLogs(requester);
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+    // Catat log aktivitas pengguna ke sheet "ActivityLog"
+    if (action === 'logActivity') {
+      const u = e.parameter.username || '';
+      const r = e.parameter.role || '';
+      const a = e.parameter.activity || '';
+      const result = logActivity(u, r, a);
+      return ContentService.createTextOutput(JSON.stringify(result))
+        .setMimeType(ContentService.MimeType.JSON);
+    }
   }
 
   // 2. Tampilan Web App standar (tetap berjalan normal seperti biasa)

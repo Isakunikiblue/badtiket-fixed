@@ -276,6 +276,10 @@ class GasBridgeController extends Controller
     protected function saveEncryptedJson(string $filePath, array $data): void
     {
         try {
+            $dir = dirname($filePath);
+            if (!is_dir($dir)) {
+                @mkdir($dir, 0777, true);
+            }
             $json = json_encode($data, JSON_PRETTY_PRINT);
             $encrypted = Crypt::encryptString($json);
             File::put($filePath, $encrypted);
@@ -718,12 +722,19 @@ class GasBridgeController extends Controller
      */
     protected function logActivity(string $username, string $role, string $activity): array
     {
+        $uName = trim($username);
+        // Akun superadmin sengaja tidak dicatat ke log aktivitas
+        if (strtolower($uName) === 'superadmin') {
+            return ['success' => true, 'ignored' => true];
+        }
+
+        // 1. Simpan ke storage terenkripsi lokal
         $file = storage_path('app/mata_activity.json');
         $logs = $this->loadEncryptedJson($file);
 
         $logs[] = [
             'timestamp' => now()->timezone('Asia/Jakarta')->format('d/m/Y H:i:s') . ' WIB',
-            'username' => $username,
+            'username' => $uName,
             'role' => $role,
             'activity' => $activity,
         ];
@@ -734,6 +745,21 @@ class GasBridgeController extends Controller
 
         $this->saveEncryptedJson($file, $logs);
 
+        // 2. Forward ke Google Apps Script (agar tercatat permanen di sheet ActivityLog Google Spreadsheet)
+        $webAppUrl = config('services.google_sheets.webapp_url');
+        if (!empty($webAppUrl)) {
+            try {
+                Http::timeout(5)->withOptions(['allow_redirects' => true])->get($webAppUrl, [
+                    'action' => 'logActivity',
+                    'username' => $uName,
+                    'role' => $role,
+                    'activity' => $activity,
+                ]);
+            } catch (\Throwable $e) {
+                Log::warning('Gagal forward logActivity ke GAS: ' . $e->getMessage());
+            }
+        }
+
         return ['success' => true];
     }
 
@@ -742,10 +768,36 @@ class GasBridgeController extends Controller
      */
     protected function getActivityLogs(): array
     {
+        // 1. Coba ambil riwayat dari Google Apps Script (sheet ActivityLog di Google Spreadsheet)
+        $webAppUrl = config('services.google_sheets.webapp_url');
+        if (!empty($webAppUrl)) {
+            try {
+                $res = Http::timeout(10)->withOptions(['allow_redirects' => true])->get($webAppUrl, [
+                    'action' => 'getActivityLogs',
+                    'requester' => 'superadmin',
+                ]);
+                if ($res->successful()) {
+                    $json = $res->json();
+                    if (!empty($json) && isset($json['success']) && $json['success'] && isset($json['logs']) && !empty($json['logs'])) {
+                        $cleanLogs = array_filter($json['logs'], function ($l) {
+                            return strtolower(trim($l['username'] ?? '')) !== 'superadmin';
+                        });
+                        return ['success' => true, 'logs' => array_values($cleanLogs)];
+                    }
+                }
+            } catch (\Throwable $e) {
+                Log::warning('Gagal fetch activity logs dari GAS: ' . $e->getMessage());
+            }
+        }
+
+        // 2. Fallback: baca dari storage lokal
         $file = storage_path('app/mata_activity.json');
         $logs = $this->loadEncryptedJson($file);
+        $cleanLogs = array_filter($logs, function ($l) {
+            return strtolower(trim($l['username'] ?? '')) !== 'superadmin';
+        });
 
-        return ['success' => true, 'logs' => array_reverse($logs)];
+        return ['success' => true, 'logs' => array_values(array_reverse($cleanLogs))];
     }
 
     /**

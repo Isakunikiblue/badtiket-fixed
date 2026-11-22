@@ -27,7 +27,7 @@ $app = Application::configure(basePath: dirname(__DIR__))
 if (isset($_SERVER['VERCEL']) || isset($_ENV['VERCEL'])) {
     $storagePath = '/tmp/storage';
     $app->useStoragePath($storagePath);
-    $dirs = ['framework/views', 'framework/cache', 'framework/sessions', 'logs'];
+    $dirs = ['framework/views', 'framework/cache', 'framework/sessions', 'logs', 'app'];
     foreach ($dirs as $dir) {
         $fullPath = $storagePath . '/' . $dir;
         if (!is_dir($fullPath)) {
