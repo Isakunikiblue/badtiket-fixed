@@ -1,5 +1,12 @@
 <?php
 
+// Suppress PHP info leak
+if (function_exists('header_remove')) {
+    @header_remove('X-Powered-By');
+    @header_remove('Server');
+}
+@ini_set('expose_php', 'off');
+
 // Pastikan direktori writable /tmp tersedia untuk lingkungan Vercel Serverless
 if (isset($_SERVER['VERCEL']) || isset($_ENV['VERCEL'])) {
     $dirs = [
@@ -7,6 +14,7 @@ if (isset($_SERVER['VERCEL']) || isset($_ENV['VERCEL'])) {
         '/tmp/storage/framework/cache/data',
         '/tmp/storage/framework/sessions',
         '/tmp/storage/logs',
+        '/tmp/storage/app',
         '/tmp/bootstrap/cache',
     ];
     foreach ($dirs as $dir) {

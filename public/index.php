@@ -1,5 +1,11 @@
 <?php
 
+if (function_exists('header_remove')) {
+    @header_remove('X-Powered-By');
+    @header_remove('Server');
+}
+@ini_set('expose_php', 'off');
+
 use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 

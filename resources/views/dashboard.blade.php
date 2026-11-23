@@ -15,10 +15,14 @@
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"></script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
+        integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+        integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"
+        integrity="sha384-Emf5ZVIUiarAdhkgtqK+5/Z5qIvM6QoVrS+qAVtfyZVuD5lIHrac0me485+Antp0" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"
+        integrity="sha384-y49Zu59jZHJL/PLKgZPv3k2WI9c0Yp3pWB76V8OBVCb0QBKS8l4Ff3YslzHVX76Y" crossorigin="anonymous"></script>
     <style>
         * {
             font-family: 'Poppins', sans-serif;
@@ -2533,9 +2537,7 @@
 
 <body>
 
-    <!-- Watermark username tipis & berulang di seluruh layar, tidak mengganggu klik.
-       Diposisikan sebagai anak langsung <body> (bukan di dalam elemen ber-transform)
-       supaya position:fixed selalu mengacu ke layar sebenarnya. -->
+    <!-- wm-container -->
     <div id="watermarkOverlay"></div>
 
     <style>
@@ -6090,7 +6092,7 @@
                 </div>
             </div>
 
-                        <!-- ===================== HALAMAN: PANDUAN PENGGUNA (USER GUIDE) ===================== -->
+            <!-- page-ug -->
             <div id="page-user-guide" style="display:none;">
                 <!-- Header Dokumen Khusus Cetak / PDF (Hanya Muncul saat Dicetak) -->
                 <div class="print-header-banner d-none mb-3 pb-2 border-bottom">
@@ -6646,7 +6648,7 @@
                             </div>
                         </div>
 
-                        <!-- Butuh Bantuan Teknis Footer Callout (admin MATA) -->
+                        <!-- support-footer -->
                         <div class="p-3 rounded-3 text-center mt-3 mb-2" style="background:rgba(163,0,48,0.06); border:1px dashed rgba(163,0,48,0.3);">
                             <i class="fa-solid fa-headset fa-2x text-danger mb-2"></i>
                             <div class="fw-bold text-navy small mb-1">Butuh Bantuan Teknis?</div>
@@ -6840,7 +6842,8 @@
 
 
     <!-- html2canvas TIDAK di-load di sini lagi (lazy-load hanya saat tombol "Unduh PNG" pertama kali diklik) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
     <script>
         // Helper sensor masking 5 digit terakhir pada Kolom N (Notes by Solver / Catatan Solver)
         // Kategori: nomor 10-12 digit (misal: 0812345678 -> 08123*****, 02122412345 -> 021224*****, 
@@ -7459,6 +7462,8 @@
             const s = document.createElement('script');
             s.id = 'html2canvas-lazy-script';
             s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            s.integrity = 'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H';
+            s.crossOrigin = 'anonymous';
             s.onload = callback;
             s.onerror = function () { alert('Gagal memuat modul unduh gambar. Periksa koneksi internet Anda.'); };
             document.head.appendChild(s);
@@ -7497,6 +7502,8 @@
             const s = document.createElement('script');
             s.id = 'xlsx-lazy-script';
             s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+            s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw';
+            s.crossOrigin = 'anonymous';
             s.onload = callback;
             s.onerror = function () { alert('Gagal memuat modul Excel. Periksa koneksi internet Anda.'); };
             document.head.appendChild(s);
@@ -7715,7 +7722,7 @@
         };
 
         // ==========================================
-        // MULTI-SELECT UNIT NAME COMPONENT LOGIC
+        // Unit Filter Dropdown Component Logic
         // ==========================================
         function populateUnitMultiSelect(id, units) {
             const container = document.getElementById('options_' + id);
