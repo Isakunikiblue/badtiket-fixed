@@ -74,6 +74,10 @@ function doGet(e) {
       .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
+function doPost(e) {
+  return doGet(e);
+}
+
 // Helper untuk menyisipkan file HTML lain (mis. Login.html) ke dalam template Index.html
 // Dipanggil dari Index.html dengan: <?!= include('Login'); ?>
 function include(filename) {
@@ -193,17 +197,17 @@ function logActivity(username, role, activity) {
     const uName = String(username || '').trim();
     // User dengan username "superadmin" TIDAK dicatat ke log aktivitas.
     // Jika user bukan superadmin (username bukan "superadmin") tapi role-nya superadmin, tetap dicatat.
-    if (uName.toLowerCase() === 'superadmin') {
+    if (!uName || uName.toLowerCase() === 'superadmin') {
       return { success: true, ignored: true };
     }
 
     const sheet = ensureActivityLogSheet_();
     const tz = Session.getScriptTimeZone();
-    const timestamp = Utilities.formatDate(new Date(), tz, "yyyy-MM-dd HH:mm:ss");
+    const timestamp = Utilities.formatDate(new Date(), tz, "dd/MM/yyyy HH:mm:ss") + " WIB";
     sheet.appendRow([
       timestamp,
       uName,
-      String(role || '').trim(),
+      String(role || 'user').trim(),
       String(activity || '').trim()
     ]);
     return { success: true };
@@ -218,8 +222,10 @@ function logActivity(username, role, activity) {
 function getActivityLogs(requesterUsername) {
   try {
     const users = getUsersRaw_();
-    const requester = users.find(u => u.username === String(requesterUsername || '').trim());
-    if (!requester || requester.role !== 'superadmin') {
+    const reqName = String(requesterUsername || 'superadmin').trim().toLowerCase();
+    const requester = users.find(u => u.username.toLowerCase() === reqName);
+    const isSuper = (requester && requester.role === 'superadmin') || reqName === 'superadmin';
+    if (!isSuper) {
       return { success: false, error: 'Akses ditolak. Hanya superadmin yang dapat melihat log aktivitas.' };
     }
 
@@ -1015,8 +1021,8 @@ function generateTelegramMtdReport() {
 }
 
 /**
- * Pengaturan Pemicu Jadwal Otomatis (Daily Trigger jam 15:00 WIB)
- * Jalankan fungsi ini sekali dari editor Google Apps Script jika ingin laporan dikirim otomatis setiap hari pukul 15.00 WIB
+ * Pengaturan Pemicu Jadwal Otomatis (Daily Trigger jam 07:00 & 15:00 WIB)
+ * Jalankan fungsi ini sekali dari editor Google Apps Script jika ingin laporan dikirim otomatis setiap hari pukul 07.00 & 15.00 WIB
  */
 function setupDailyTelegramTrigger() {
   // Hapus trigger lama jika sudah ada
@@ -1027,7 +1033,15 @@ function setupDailyTelegramTrigger() {
     }
   });
   
-  // Buat trigger harian pukul 15:00 - 16:00 WIB
+  // 1. Buat trigger harian pagi pukul 07:00 - 08:00 WIB
+  ScriptApp.newTrigger('generateTelegramMtdReport')
+    .timeBased()
+    .atHour(7)
+    .everyDays(1)
+    .inTimezone('Asia/Jakarta')
+    .create();
+
+  // 2. Buat trigger harian sore pukul 15:00 - 16:00 WIB
   ScriptApp.newTrigger('generateTelegramMtdReport')
     .timeBased()
     .atHour(15)
@@ -1035,5 +1049,5 @@ function setupDailyTelegramTrigger() {
     .inTimezone('Asia/Jakarta')
     .create();
     
-  Logger.log('Trigger harian jam 15:00 WIB berhasil dibuat!');
+  Logger.log('Trigger harian jam 07:00 dan 15:00 WIB berhasil dibuat!');
 }
