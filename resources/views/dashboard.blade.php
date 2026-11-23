@@ -12,14 +12,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://cdnjs.cloudflare.com">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet"
-        integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+    <link href="/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
         integrity="sha384-iw3OoTErCYJJB9mCa8LNS2hbsQ7M3C0EpIsO/H5+EGAkPGc6rk+V8i04oW/K5xq0" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"
-        integrity="sha384-Emf5ZVIUiarAdhkgtqK+5/Z5qIvM6QoVrS+qAVtfyZVuD5lIHrac0me485+Antp0" crossorigin="anonymous"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0"
-        integrity="sha384-y49Zu59jZHJL/PLKgZPv3k2WI9c0Yp3pWB76V8OBVCb0QBKS8l4Ff3YslzHVX76Y" crossorigin="anonymous"></script>
+    <script src="/js/chart.min.js"></script>
+    <script src="/js/chartjs-plugin-datalabels.min.js"></script>
     <style>
         /* Inlined Poppins Font-Face definitions to satisfy Subresource Integrity (SRI) compliance */
         @font-face {
@@ -6888,8 +6885,7 @@
 
 
     <!-- html2canvas TIDAK di-load di sini lagi (lazy-load hanya saat tombol "Unduh PNG" pertama kali diklik) -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
-        integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+    <script src="/js/bootstrap.bundle.min.js"></script>
     <script>
         // Helper sensor masking 5 digit terakhir pada Kolom N (Notes by Solver / Catatan Solver)
         // Kategori: nomor 10-12 digit (misal: 0812345678 -> 08123*****, 02122412345 -> 021224*****, 
@@ -7507,9 +7503,7 @@
             if (existing) { existing.addEventListener('load', callback, { once: true }); return; }
             const s = document.createElement('script');
             s.id = 'html2canvas-lazy-script';
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-            s.integrity = 'sha384-ZZ1pncU3bQe8y31yfZdMFdSpttDoPmOZg2wguVK9almUodir1PghgT0eY7Mrty8H';
-            s.crossOrigin = 'anonymous';
+            s.src = '/js/html2canvas.min.js';
             s.onload = callback;
             s.onerror = function () { alert('Gagal memuat modul unduh gambar. Periksa koneksi internet Anda.'); };
             document.head.appendChild(s);
@@ -7547,9 +7541,7 @@
             if (existing) { existing.addEventListener('load', callback, { once: true }); return; }
             const s = document.createElement('script');
             s.id = 'xlsx-lazy-script';
-            s.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-            s.integrity = 'sha384-vtjasyidUo0kW94K5MXDXntzOJpQgBKXmE7e2Ga4LG0skTTLeBi97eFAXsqewJjw';
-            s.crossOrigin = 'anonymous';
+            s.src = '/js/xlsx.full.min.js';
             s.onload = callback;
             s.onerror = function () { alert('Gagal memuat modul Excel. Periksa koneksi internet Anda.'); };
             document.head.appendChild(s);
