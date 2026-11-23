@@ -36,6 +36,10 @@
       "dest": "/public/css/$1"
     },
     {
+      "src": "/webfonts/(.*)",
+      "dest": "/public/webfonts/$1"
+    },
+    {
       "src": "/build/(.*)",
       "dest": "/public/build/$1"
     },

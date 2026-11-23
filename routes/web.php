@@ -37,6 +37,17 @@ Route::get('/css/{file}', function ($file) {
     abort(404);
 })->where('file', '.*');
 
+Route::get('/webfonts/{file}', function ($file) {
+    $path = public_path('webfonts/' . $file);
+    if (file_exists($path)) {
+        return response()->file($path, [
+            'Content-Type' => 'font/woff2',
+            'Cache-Control' => 'public, max-age=31536000, immutable'
+        ]);
+    }
+    abort(404);
+})->where('file', '.*');
+
 // Rute API & RPC dilindungi oleh Rate Limiter untuk mitigasi DDoS / Credential Flooding
 Route::middleware('throttle:120,1')->group(function () {
     Route::post('/mata-api/sync-data', [DashboardController::class, 'syncData'])->name('api.sync');
