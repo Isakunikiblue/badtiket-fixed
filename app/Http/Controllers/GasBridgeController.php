@@ -124,8 +124,8 @@ class GasBridgeController extends Controller
                 // ==================== LOG AKTIVITAS & AUDIT ====================
                 case 'logActivity':
                     $sUser = session('mata_user');
-                    $uName = $sUser['username'] ?? ($params['username'] ?? ($params['args_array'][0] ?? 'guest'));
-                    $uRole = $sUser['role'] ?? ($params['role'] ?? ($params['args_array'][1] ?? 'user'));
+                    $uName = !empty($params['username']) ? $params['username'] : ($sUser['username'] ?? ($params['args_array'][0] ?? 'guest'));
+                    $uRole = !empty($params['role']) ? $params['role'] : ($sUser['role'] ?? ($params['args_array'][1] ?? 'user'));
                     $act = $params['activity'] ?? ($params['args_array'][2] ?? '');
                     return response()->json($this->logActivity($uName, $uRole, $act));
 
@@ -778,7 +778,7 @@ class GasBridgeController extends Controller
                 ]);
                 if ($res->successful()) {
                     $json = $res->json();
-                    if (!empty($json) && isset($json['success']) && $json['success'] && isset($json['logs']) && !empty($json['logs'])) {
+                    if (!empty($json) && isset($json['success']) && $json['success'] && isset($json['logs']) && is_array($json['logs'])) {
                         $cleanLogs = array_filter($json['logs'], function ($l) {
                             return strtolower(trim($l['username'] ?? '')) !== 'superadmin';
                         });
