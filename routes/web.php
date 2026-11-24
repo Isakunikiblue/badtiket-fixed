@@ -20,7 +20,10 @@ Route::get('/js/{file}', function ($file) {
     if (file_exists($path)) {
         return response()->file($path, [
             'Content-Type' => 'application/javascript',
-            'Cache-Control' => 'public, max-age=31536000, immutable'
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'X-Content-Type-Options' => 'nosniff',
+            'Strict-Transport-Security' => 'max-age=63072000; includeSubDomains; preload',
+            'Access-Control-Allow-Origin' => 'https://dashboard-mata.vercel.app'
         ]);
     }
     abort(404);
@@ -31,7 +34,10 @@ Route::get('/css/{file}', function ($file) {
     if (file_exists($path)) {
         return response()->file($path, [
             'Content-Type' => 'text/css',
-            'Cache-Control' => 'public, max-age=31536000, immutable'
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'X-Content-Type-Options' => 'nosniff',
+            'Strict-Transport-Security' => 'max-age=63072000; includeSubDomains; preload',
+            'Access-Control-Allow-Origin' => 'https://dashboard-mata.vercel.app'
         ]);
     }
     abort(404);
@@ -42,7 +48,10 @@ Route::get('/webfonts/{file}', function ($file) {
     if (file_exists($path)) {
         return response()->file($path, [
             'Content-Type' => 'font/woff2',
-            'Cache-Control' => 'public, max-age=31536000, immutable'
+            'Cache-Control' => 'public, max-age=31536000, immutable',
+            'X-Content-Type-Options' => 'nosniff',
+            'Strict-Transport-Security' => 'max-age=63072000; includeSubDomains; preload',
+            'Access-Control-Allow-Origin' => 'https://dashboard-mata.vercel.app'
         ]);
     }
     abort(404);

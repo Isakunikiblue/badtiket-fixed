@@ -11,9 +11,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="/css/bootstrap.min.css" rel="stylesheet">
     <link href="/css/all.min.css" rel="stylesheet">
-    <script src="/js/chart.min.js"></script>
-    <script src="/js/chartjs-plugin-datalabels.min.js"></script>
-    <style>
+    <script nonce="{{ $cspNonce ?? '' }}" src="/js/chart.min.js"></script>
+    <script nonce="{{ $cspNonce ?? '' }}" src="/js/chartjs-plugin-datalabels.min.js"></script>
+    <style nonce="{{ $cspNonce ?? '' }}">
         /* Inlined Poppins Font-Face definitions to satisfy Subresource Integrity (SRI) compliance */
         @font-face {
             font-family: 'Poppins';
@@ -2415,7 +2415,7 @@
             }
         }
     </style>
-    <script>
+    <script nonce="{{ $cspNonce ?? '' }}">
         // Data inisial (diset null agar respon awal HTML ringan ~1.4MB dan cepat <50ms)
         window.__INITIAL_DASHBOARD_DATA__ = null;
 
@@ -2579,7 +2579,7 @@
     
     <div id="watermarkOverlay"></div>
 
-    <style>
+    <style nonce="{{ $cspNonce ?? '' }}">
   /* ===================== LOGIN SCREEN (MODERN SPLIT DESIGN - MATA) ===================== */
   #login-container {
     position: fixed;
@@ -3496,7 +3496,7 @@
   </div>
 </div>
 
-<script>
+<script nonce="{{ $cspNonce ?? '' }}">
   // Data akun yang sedang login, diinisialisasi dari sesi server yang aman
   let currentUsername = @json($currentUser['username'] ?? '');
   let currentUserRole = @json($currentUser['role'] ?? '');
@@ -6881,8 +6881,8 @@
 
 
     
-    <script src="/js/bootstrap.bundle.min.js"></script>
-    <script>
+    <script nonce="{{ $cspNonce ?? '' }}" src="/js/bootstrap.bundle.min.js"></script>
+    <script nonce="{{ $cspNonce ?? '' }}">
         // Helper sensor masking 5 digit terakhir pada Kolom N (Notes by Solver / Catatan Solver)
         // Kategori: nomor 10-12 digit (misal: 0812345678 -> 08123*****, 02122412345 -> 021224*****, 
         // 143423112345 -> 1434231*****, 081326812345 -> 0813268*****) & dengan prefiks KM (KM34241112345 -> KM342411*****)
