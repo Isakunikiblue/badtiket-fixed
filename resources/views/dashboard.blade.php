@@ -7,9 +7,7 @@
     <meta name="robots" content="noindex, nofollow">
     <title>Dashboard MATA (Monitoring Akurasi Tiket & Action)</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTQiIGZpbGw9IiNBMzAwMzAiLz48cGF0aCBkPSJNOCAyNEMxMyAxNiAzNSAxNiA0MCAyNEMzNSAzMiAxMyAzMiA4IDI0WiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iNy41IiBmaWxsPSIjRjU5RTBCIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMS44Ii8+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMy4yIiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMjUuMiIgY3k9IjIyLjgiIHI9IjEuMSIgZmlsbD0iIzgwMDAyMCIvPjwvc3ZnPg==">
-    
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="/css/bootstrap.min.css" rel="stylesheet">
+<link href="/css/bootstrap.min.css" rel="stylesheet">
     <link href="/css/all.min.css" rel="stylesheet">
     <script nonce="{{ $cspNonce ?? '' }}" src="/js/chart.min.js"></script>
     <script nonce="{{ $cspNonce ?? '' }}" src="/js/chartjs-plugin-datalabels.min.js"></script>
@@ -20,7 +18,7 @@
             font-style: normal;
             font-weight: 300;
             font-display: swap;
-            src: url(https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLDz8Z1xlFQ.woff2) format('woff2');
+            src: url(/webfonts/poppins/poppins-v24-latin-300.woff2) format('woff2');
             unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
         }
         @font-face {
@@ -28,7 +26,7 @@
             font-style: normal;
             font-weight: 400;
             font-display: swap;
-            src: url(https://fonts.gstatic.com/s/poppins/v24/pxiEyp8kv8JHgFVrJJfecg.woff2) format('woff2');
+            src: url(/webfonts/poppins/poppins-v24-latin-400.woff2) format('woff2');
             unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
         }
         @font-face {
@@ -36,7 +34,7 @@
             font-style: normal;
             font-weight: 500;
             font-display: swap;
-            src: url(https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLGT9Z1xlFQ.woff2) format('woff2');
+            src: url(/webfonts/poppins/poppins-v24-latin-500.woff2) format('woff2');
             unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
         }
         @font-face {
@@ -44,7 +42,7 @@
             font-style: normal;
             font-weight: 600;
             font-display: swap;
-            src: url(https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLEj6Z1xlFQ.woff2) format('woff2');
+            src: url(/webfonts/poppins/poppins-v24-latin-600.woff2) format('woff2');
             unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
         }
         @font-face {
@@ -52,7 +50,7 @@
             font-style: normal;
             font-weight: 700;
             font-display: swap;
-            src: url(https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLCz7Z1xlFQ.woff2) format('woff2');
+            src: url(/webfonts/poppins/poppins-v24-latin-700.woff2) format('woff2');
             unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
         }
         @font-face {
@@ -60,7 +58,7 @@
             font-style: normal;
             font-weight: 800;
             font-display: swap;
-            src: url(https://fonts.gstatic.com/s/poppins/v24/pxiByp8kv8JHgFVrLDD4Z1xlFQ.woff2) format('woff2');
+            src: url(/webfonts/poppins/poppins-v24-latin-800.woff2) format('woff2');
             unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
         }
         * {

@@ -41,9 +41,9 @@ class SecurityHeadersMiddleware
         $csp = "default-src 'self' https://script.google.com https://script.googleusercontent.com; " .
                "script-src 'self' 'nonce-{$nonce}' https://script.google.com; " .
                "script-src-attr 'unsafe-inline'; " .
-               "style-src 'self' 'nonce-{$nonce}' https://fonts.googleapis.com; " .
+               "style-src 'self' 'nonce-{$nonce}'; " .
                "style-src-attr 'unsafe-inline'; " .
-               "font-src 'self' data: https://fonts.gstatic.com; " .
+               "font-src 'self' data:; " .
                "img-src 'self' data: blob: https://script.google.com https://script.googleusercontent.com https://lh3.googleusercontent.com; " .
                "connect-src 'self' https://script.google.com https://script.googleusercontent.com https://api.telegram.org; " .
                "frame-ancestors 'self'; " .
