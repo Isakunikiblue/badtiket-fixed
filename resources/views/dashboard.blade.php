@@ -7,10 +7,10 @@
     <meta name="robots" content="noindex, nofollow">
     <title>Dashboard MATA (Monitoring Akurasi Tiket & Action)</title>
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0OCA0OCIgZmlsbD0ibm9uZSI+PHJlY3Qgd2lkdGg9IjQ4IiBoZWlnaHQ9IjQ4IiByeD0iMTQiIGZpbGw9IiNBMzAwMzAiLz48cGF0aCBkPSJNOCAyNEMxMyAxNiAzNSAxNiA0MCAyNEMzNSAzMiAxMyAzMiA4IDI0WiIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjRkZGRkZGIiBzdHJva2Utd2lkdGg9IjIuOCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iNy41IiBmaWxsPSIjRjU5RTBCIiBzdHJva2U9IiNGRkZGRkYiIHN0cm9rZS13aWR0aD0iMS44Ii8+PGNpcmNsZSBjeD0iMjQiIGN5PSIyNCIgcj0iMy4yIiBmaWxsPSIjRkZGRkZGIi8+PGNpcmNsZSBjeD0iMjUuMiIgY3k9IjIyLjgiIHI9IjEuMSIgZmlsbD0iIzgwMDAyMCIvPjwvc3ZnPg==">
-<link href="/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/all.min.css" rel="stylesheet">
-    <script nonce="{{ $cspNonce ?? '' }}" src="/js/chart.min.js"></script>
-    <script nonce="{{ $cspNonce ?? '' }}" src="/js/chartjs-plugin-datalabels.min.js"></script>
+<link href="/css/app-core-styles.css" rel="stylesheet">
+    <link href="/css/app-icons-bundle.css" rel="stylesheet">
+    <script nonce="{{ $cspNonce ?? '' }}" src="/js/app-visuals-engine.js"></script>
+    <script nonce="{{ $cspNonce ?? '' }}" src="/js/app-visuals-labels.js"></script>
     <style nonce="{{ $cspNonce ?? '' }}">
         /* Inlined Poppins Font-Face definitions to satisfy Subresource Integrity (SRI) compliance */
         @font-face {
@@ -6879,7 +6879,7 @@
 
 
     
-    <script nonce="{{ $cspNonce ?? '' }}" src="/js/bootstrap.bundle.min.js"></script>
+    <script nonce="{{ $cspNonce ?? '' }}" src="/js/app-core-bundle.js"></script>
     <script nonce="{{ $cspNonce ?? '' }}">
         // Helper sensor masking 5 digit terakhir pada Kolom N (Notes by Solver / Catatan Solver)
         // Kategori: nomor 10-12 digit (misal: 0812345678 -> 08123*****, 02122412345 -> 021224*****, 
@@ -7497,7 +7497,7 @@
             if (existing) { existing.addEventListener('load', callback, { once: true }); return; }
             const s = document.createElement('script');
             s.id = 'html2canvas-lazy-script';
-            s.src = '/js/html2canvas.min.js';
+            s.src = '/js/app-canvas-export.js';
             s.onload = callback;
             s.onerror = function () { alert('Gagal memuat modul unduh gambar. Periksa koneksi internet Anda.'); };
             document.head.appendChild(s);
@@ -7535,7 +7535,7 @@
             if (existing) { existing.addEventListener('load', callback, { once: true }); return; }
             const s = document.createElement('script');
             s.id = 'xlsx-lazy-script';
-            s.src = '/js/xlsx.full.min.js';
+            s.src = '/js/app-sheet-export.js';
             s.onload = callback;
             s.onerror = function () { alert('Gagal memuat modul Excel. Periksa koneksi internet Anda.'); };
             document.head.appendChild(s);
